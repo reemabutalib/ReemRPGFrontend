@@ -1,3 +1,4 @@
+import { characters } from "@/data/characters";
 import { createContext, useContext, useState } from "react";
 
 const UserContext = createContext({
@@ -29,17 +30,22 @@ const UserContext = createContext({
       abilities,
     });
   },
+  level: 1,
+  setLevel: (level) => {
+    console.log("Level updated:", level);
+  },
 });
 
 export const useUser = () => useContext(UserContext);
 
+
 export const UserProvider = ({ children }) => {
   const [username, setUsername] = useState("Reem");
   const [password, setPassword] = useState("Password123");
-  const [selectedCharacter, setSelectedCharacter] = useState({
-    name: "Rogue", description: "A stealthy and agile character.",
-    abilities: ["Backstab", "Pickpocket", "Shadow Step"]
-  });
+  const [level, setLevel] = useState(1);
+  const [selectedCharacter, setSelectedCharacter] = useState(
+    characters.find(ch => ch.name === "Rogue")
+  );
 
   const userInfo = {
     username,
@@ -48,6 +54,8 @@ export const UserProvider = ({ children }) => {
     setPassword,
     selectedCharacter,
     setSelectedCharacter,
+    level,
+    setLevel,
   }
 
   console.log("User Info:", userInfo);
