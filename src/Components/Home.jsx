@@ -1,3 +1,4 @@
+import logo from "@/assets/images/ReemRPGlogo.png";
 import { useNavigate } from 'react-router';
 import './Home.css';
 
@@ -5,6 +6,14 @@ export default function Home() {
     const navigate = useNavigate();
     return (
         <main className="home">
+            <header className="home-header">
+                <img
+                    src={logo}
+                    alt="Reem RPG Logo"
+                    className="home-logo"
+                    onClick={() => navigate('/')} // Navigate to the home page when clicked
+                />
+            </header>
             <div className="container">
                 <h1>Reem RPG</h1>
                 <p>
@@ -26,5 +35,5 @@ export default function Home() {
                 </button>
             </div>
         </main>
-    )
+    );
 }
