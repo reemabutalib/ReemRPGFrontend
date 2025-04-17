@@ -1,5 +1,4 @@
 import { useUser } from "@/context/userContext";
-import { quests } from "@/data/quests";
 import { useState } from "react";
 import "./Quests.css";
 
@@ -20,6 +19,13 @@ const Quests = () => {
     const { selectedCharacter, level } = useUser();
 
     // Filter quests based on the selected character and level
+    // Replace this with your actual quests array
+    const quests = [
+        { id: 1, name: "Quest 1", description: "Description 1", requiredCharacter: "Warrior", requiredLevel: 1 },
+        { id: 2, name: "Quest 2", description: "Description 2", requiredCharacter: "Mage", requiredLevel: 2 },
+        // Add more quests as needed
+    ];
+
     const availableQuests = quests.filter(
         (quest) =>
             quest.requiredCharacter === selectedCharacter.name &&

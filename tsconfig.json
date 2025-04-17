@@ -1,20 +1,17 @@
 {
     "compilerOptions": {
-        "target": "esnext",
-        "module": "esnext",
-        "moduleResolution": "node",
-        "baseUrl": ".",
-        "paths": {
-            "@/*": [
-                "src/*"
-            ]
-        },
-        "jsx": "preserve",
-        "allowJs": true,
-        "checkJs": true,
-        "strict": false
+      "target": "esnext",
+      "module": "esnext",
+      "moduleResolution": "node",
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/*"]
+      },
+      "jsx": "preserve",
+      "allowJs": true,
+      "checkJs": true,
+      "strict": false,
+      "types": ["vite/client"]
     },
-    "include": [
-        "src"
-    ]
-}
+    "include": ["src"]
+  }

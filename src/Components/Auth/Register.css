@@ -1,0 +1,51 @@
+.register {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #4e0101;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+    color: white; /* Make all text inside the .register container white */
+}
+
+.register h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: white; /* Ensure the heading text is white */
+}
+
+.register-form .form-group {
+    margin-bottom: 15px;
+}
+
+.register-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: white; /* Make the labels white */
+}
+
+.register-form input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    color: black; /* Keep input text black for readability */
+    background-color: white; /* Ensure input background is white */
+}
+
+.register-form button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.register-form button:hover {
+    background-color: #0056b3;
+}

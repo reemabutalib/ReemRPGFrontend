@@ -1,0 +1,51 @@
+.login {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #000000; /* Black background */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+    color: white; /* White text */
+}
+
+.login h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: white; /* Ensure the heading text is white */
+}
+
+.login-form .form-group {
+    margin-bottom: 15px;
+}
+
+.login-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: white; /* Make the labels white */
+}
+
+.login-form input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    color: black; /* Black text for input fields */
+    background-color: white; /* White background for input fields */
+}
+
+.login-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #8B0000; /* Dark red button */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.login-button:hover {
+    background-color: #600000; /* Darker red on hover */
+}
