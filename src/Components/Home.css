@@ -94,9 +94,9 @@
 }
 
 .welcome-section p {
-    font-size: 18px; /* Adjust font size for the description */
-    font-weight: normal; /* Make the description text normal weight */
-    margin: 0; /* Remove default margins */
+    font-size: 18px; 
+    font-weight: normal; 
+    margin: 0;
     line-height: 1.6; /* Add line height for better readability */
-    color: #cccccc; /* Use a lighter color for the description */
+    color: #cccccc; 
 }

@@ -1,74 +1,82 @@
 import { useUser } from "@/context/userContext";
-import { useState } from "react";
+import axios from "axios";
+import { useEffect, useState } from "react";
 import "./Quests.css";
 
-const QuestCard = ({ quest, onDoQuest }) => {
-    return (
-        <div className="quest-card">
-            <h2>{quest.name}</h2>
-            <p>{quest.description}</p>
-            <button onClick={() => onDoQuest(quest.id)}>
-                Do the Quest
-            </button>
-        </div>
-    );
-}
+const QuestCard = ({ quest, onDoQuest }) => (
+    <div className="quest-card">
+        <h2>{quest.title}</h2>
+        <p>{quest.description}</p>
+        <button onClick={() => onDoQuest(quest)}>
+            Attempt Quest
+        </button>
+    </div>
+);
 
 const Quests = () => {
-    const [doingQuest, setDoingQuest] = useState(false);
-    const { selectedCharacter, level } = useUser();
+    const { selectedCharacter, setSelectedCharacter } = useUser();
+    const [quests, setQuests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [result, setResult] = useState(null);
 
-    // Filter quests based on the selected character and level
-    // Replace this with your actual quests array
-    const quests = [
-        { id: 1, name: "Quest 1", description: "Description 1", requiredCharacter: "Warrior", requiredLevel: 1 },
-        { id: 2, name: "Quest 2", description: "Description 2", requiredCharacter: "Mage", requiredLevel: 2 },
-        // Add more quests as needed
-    ];
+    useEffect(() => {
+        const fetchQuests = async () => {
+            try {
+                const response = await axios.get("http://localhost:5233/api/quest");
+                setQuests(response.data);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching quests:", err);
+                setError("Failed to load quests.");
+                setLoading(false);
+            }
+        };
 
-    const availableQuests = quests.filter(
-        (quest) =>
-            quest.requiredCharacter === selectedCharacter.name &&
-            quest.requiredLevel <= level
-    );
+        fetchQuests();
+    }, []);
 
-    console.log("Available quests:", availableQuests);
+    const handleQuestAttempt = async (quest) => {
+        try {
+            const response = await axios.post(
+                `http://localhost:5233/api/quest/attempt`,
+                {
+                    characterId: selectedCharacter.characterId,
+                    questId: quest.id,
+                }
+            );
 
-    const doQuest = (questId) => {
-        const quest = availableQuests.find(q => q.id === questId);
-
-
-        setDoingQuest(true);
-
-        setTimeout(() => {
-            setDoingQuest(false);
-            alert(`You have completed the quest: ${quest.name}`);
+            const { success, rewards } = response.data;
+            if (success) {
+                setResult(`Quest completed! Rewards: ${rewards}`);
+                // Update character stats with rewards
+                setSelectedCharacter((prev) => ({
+                    ...prev,
+                    level: prev.level + rewards.experience,
+                    gold: prev.gold + rewards.gold,
+                }));
+            } else {
+                setResult("Quest failed. Try again!");
+            }
+        } catch (err) {
+            console.error("Error attempting quest:", err);
         }
-            , 2000); // Simulate a delay of 2 seconds
-    }
+    };
 
-    if (doingQuest) {
-        return (
-            <div className="quests">
-                <div>Doing Quest....</div>
-            </div>
-        )
-    }
+    if (loading) return <div>Loading quests...</div>;
+    if (error) return <div>{error}</div>;
 
     return (
         <div className="quests">
-            <h1>Available Quests for {" "}
-                {selectedCharacter.name} (Level {level})
-            </h1>
-            {availableQuests.length > 0 ? (
-                <ul className="quests-container">
-                    {availableQuests.map((quest) => (
-                        <QuestCard quest={quest} key={quest.id} onDoQuest={doQuest} />
-                    ))}
-                </ul>
-            ) : (
-                <p>No quests available for your character and level.</p>
-            )}
+            <h1>Available Quests</h1>
+            {result && <p>{result}</p>}
+            {quests.map((quest) => (
+                <QuestCard
+                    key={quest.id}
+                    quest={quest}
+                    onDoQuest={handleQuestAttempt}
+                />
+            ))}
         </div>
     );
 };

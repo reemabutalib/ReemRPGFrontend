@@ -6,7 +6,7 @@ import './Login.css';
 
 export default function Login() {
     const navigate = useNavigate();
-    const { setUsername, hasSelectedCharacter } = useUser();
+    const { hasSelectedCharacter } = useUser();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -22,12 +22,11 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevent page refresh
+        console.log('Login form submitted');
         try {
             // Make API call to log in the user
-            const response = await axios.post('http://localhost:5233/api/login', formData);
+            const response = await axios.post('http://localhost:5233/api/account/login', formData);
             console.log('Login successful:', response.data);
-
-            setUsername(response.data.username);
 
             // Redirect based on whether the user has a selected character
             if (hasSelectedCharacter()) {

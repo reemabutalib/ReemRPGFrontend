@@ -4,19 +4,20 @@ import { createContext, useContext, useEffect, useState } from 'react';
 // 1. Define the shape of the context
 const defaultContext = {
   username: '',
-  setUsername: (_: string) => {},
+  setUsername: () => { },
   password: '',
-  setPassword: (_: string) => {},
+  setPassword: () => { },
   selectedCharacter: null,
-  setSelectedCharacter: (_: any) => {},
+  setSelectedCharacter: () => { },
   favorites: [],
-  toggleFavorite: (_: any) => {},
+  toggleFavorite: () => { },
   hasSelectedCharacter: () => false,
   characters: [],
-  setCharacters: (_: any[]) => {},
+  setCharacters: () => { },
   loading: true,
   error: null,
 };
+
 
 
 

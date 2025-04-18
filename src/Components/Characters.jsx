@@ -14,7 +14,7 @@ const Characters = () => {
     useEffect(() => {
         const fetchCharacters = async () => {
             try {
-                const response = await axios.get('http://localhost:5233/api/characters');
+                const response = await axios.get('http://localhost:5233/api/character');
                 setCharacters(response.data);
                 setLoading(false);
             } catch (err) {
