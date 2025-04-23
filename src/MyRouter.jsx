@@ -6,7 +6,7 @@ import Dashboard from "@/Components/Dashboard";
 import Home from "@/Components/Home";
 import Navbar from "@/Components/Navbar";
 import Quests from "@/Components/Quests";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 export default function MyRouter() {
     return (
