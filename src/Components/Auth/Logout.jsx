@@ -4,9 +4,11 @@ import './Logout.css';
 
 // Export the handleLogout function so it can be used elsewhere
 export const handleLogout = (navigate) => {
-    // Clear any stored user data (auth token, selected character, etc.)
+    // Only clear the authentication token, NOT the selected character
     localStorage.removeItem("authToken");
-    localStorage.removeItem("selectedCharacter");
+
+    // DON'T remove the selected character
+    // localStorage.removeItem("selectedCharacter");
 
     // Redirect to the login page
     navigate("/login");

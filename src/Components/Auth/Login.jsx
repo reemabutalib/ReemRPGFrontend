@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router';
 import { useUser } from "../../context/userContext";
 import './Login.css';
 
+
+console.log("=== LOGIN COMPONENT LOADED ===");
+console.log("localStorage contents at Login load:", {
+    authToken: localStorage.getItem('authToken') ? "EXISTS" : "NOT FOUND",
+    selectedCharacter: localStorage.getItem('selectedCharacter')
+});
+
 export default function Login() {
     const navigate = useNavigate();
     const { setSelectedCharacter } = useUser();
@@ -11,7 +18,8 @@ export default function Login() {
         email: '',
         password: '',
     });
-    const [error, setError] = useState(null); // State to handle errors
+    const [error, setError] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -21,125 +29,125 @@ export default function Login() {
         });
     };
 
-    // Enhanced login logic with detailed logging
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null); // Clear any previous errors
+        setError(null);
+        setIsLoading(true);
+
+        // Add the localStorage test here
+        localStorage.setItem('testValue', 'hello');
+        const testResult = localStorage.getItem('testValue');
+        console.log("Simple localStorage test:", testResult === 'hello' ? "WORKING" : "FAILED");
 
         console.log("Login attempt with:", { email: formData.email, password: "********" });
-        console.log("Full form data:", { ...formData, password: "********" });
 
         try {
-            // Login API call
-            console.log("Making request to:", 'http://localhost:5233/api/account/login');
-
+            // Step 1: Login API call
+            console.log("Making login request...");
             const response = await axios.post('http://localhost:5233/api/account/login', formData, {
                 headers: {
                     'Content-Type': 'application/json',
                 }
             });
 
-            console.log("Login response status:", response.status);
-            console.log("Login response headers:", response.headers);
-            console.log("Login response data:", response.data);
+            console.log("Login successful:", response.status);
 
             const token = response.data.token;
-
             if (!token) {
-                console.error("Token missing from response:", response.data);
                 throw new Error('Failed to retrieve token from login response.');
             }
 
-            console.log("Token received and valid");
-
-            // Store token
+            // Step 2: Store token
             localStorage.setItem('authToken', token);
             console.log("Token stored in localStorage");
 
-            // Check if a selected character exists for this user
-            const selectedCharacter = localStorage.getItem('selectedCharacter') ||
+            // Replace the localStorage character check section with this:
+
+            // Step 3: IMPORTANT - Check for cached character FIRST
+            const localCharacter = localStorage.getItem('selectedCharacter') ||
                 sessionStorage.getItem('selectedCharacter');
+            console.log("Local character check:", localCharacter ? "FOUND" : "NOT FOUND");
 
-            console.log("Selected character in storage:", selectedCharacter ? "Found" : "Not found");
-
-            if (selectedCharacter) {
-                console.log("Found existing selected character in storage");
+            if (localCharacter) {
+                console.log("Found cached character in localStorage");
                 try {
-                    const parsedCharacter = JSON.parse(selectedCharacter);
+                    const parsedCharacter = JSON.parse(localCharacter);
                     console.log("Parsed character:", parsedCharacter);
 
-                    // Ensure it has both id and characterId properties
-                    if (parsedCharacter.characterId && !parsedCharacter.id) {
-                        parsedCharacter.id = parsedCharacter.characterId;
-                    }
-                    if (parsedCharacter.id && !parsedCharacter.characterId) {
-                        parsedCharacter.characterId = parsedCharacter.id;
-                    }
+                    // Verify it's a valid character object with required properties
+                    if (parsedCharacter && parsedCharacter.name) {
+                        console.log("Using cached character:", parsedCharacter.name);
+                        setSelectedCharacter(parsedCharacter);
 
-                    // Re-save with any fixes
-                    localStorage.setItem('selectedCharacter', JSON.stringify(parsedCharacter));
-
-                    // Update the user context
-                    setSelectedCharacter(parsedCharacter);
-                    console.log("Character set in context, navigating to dashboard");
-                    navigate('/dashboard');
+                        // Navigate to dashboard immediately with cached character
+                        navigate('/dashboard');
+                        return; // Exit early - we've already navigated
+                    } else {
+                        console.log("Character found in localStorage but appears invalid");
+                        localStorage.removeItem('selectedCharacter'); // Remove invalid character
+                    }
                 } catch (parseError) {
-                    console.error("Error parsing character from storage:", parseError);
+                    console.error("Error parsing cached character:", parseError);
                     localStorage.removeItem('selectedCharacter');
-                    sessionStorage.removeItem('selectedCharacter');
-                    navigate('/characters');
+                    // Continue to server fetch
                 }
-            } else {
-                console.log("No selected character found in storage");
-                console.log("First login detected - redirecting to character selection");
-                navigate('/characters');
             }
 
-            /* Commenting out the problematic code that tries to fetch the character
-            // Fetch selected character from backend using the correct endpoint
+            // Step 4: If no valid cached character, try fetching from server
+            console.log("No valid cached character, checking server...");
             try {
+                // Try to get character from server
                 const characterResponse = await axios.get('http://localhost:5233/api/character/get-selected-character', {
                     headers: {
                         Authorization: `Bearer ${token}`,
-                    },
+                    }
                 });
 
-                console.log("Character response:", characterResponse.data);
+                console.log("Server character response:", characterResponse.data);
 
-                if (characterResponse.data && Object.keys(characterResponse.data).length > 0) {
-                    const character = characterResponse.data;
-                    console.log("Selected character found on server:", character);
-                    setSelectedCharacter(character); // Update the user context
-                    localStorage.setItem('selectedCharacter', JSON.stringify(character)); // Persist the selection
-                    console.log("Navigating to dashboard with retrieved character");
-                    navigate('/dashboard'); // Redirect to the dashboard
+                if (characterResponse.data) {
+                    // Save server character and go to dashboard
+                    localStorage.setItem('selectedCharacter', JSON.stringify(characterResponse.data));
+                    setSelectedCharacter(characterResponse.data);
+                    navigate('/dashboard');
                 } else {
-                    console.log("No character selected on server, redirecting to character selection");
-                    navigate('/characters'); // Redirect to character selection if no character is selected
+                    // No server character
+                    console.log("No character found on server, redirecting to selection");
+                    navigate('/characters');
                 }
-            } catch (characterError) {
-                console.error("Error fetching selected character:", characterError);
+            } catch (fetchError) {
+                console.error("Error fetching selected character:", fetchError);
 
-                if (characterError.response) {
-                    console.error("Response status:", characterError.response.status);
-                    console.error("Response data:", characterError.response.data);
+                if (fetchError.response && fetchError.response.status === 404) {
+                    console.log("User has no character selected yet (404 response)");
+
+                    // CRITICAL: Check if we have a character in localStorage despite a 404
+                    const fallbackCharacter = localStorage.getItem('selectedCharacter');
+                    if (fallbackCharacter) {
+                        try {
+                            console.log("Using fallback character from localStorage");
+                            const parsedFallback = JSON.parse(fallbackCharacter);
+                            setSelectedCharacter(parsedFallback);
+                            navigate('/dashboard');
+                            return;
+                        } catch (fallbackError) {
+                            console.error("Error using fallback character:", fallbackError);
+                        }
+                    }
+
+                    // If we reach here, then both server and localStorage have no character
+                    console.log("No character found, redirecting to character selection");
+                    navigate('/characters');
+                } else {
+                    // Other error, redirect to character selection
+                    console.log("Error fetching character, redirecting to character selection");
+                    navigate('/characters');
                 }
-
-                console.log("Redirecting to character selection due to error");
-                navigate('/characters');
             }
-            */
         } catch (error) {
-            console.error('Login error details:', error);
+            console.error('Login error:', error);
 
             if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                console.error('Error response status:', error.response.status);
-                console.error('Error response data:', error.response.data);
-                console.error('Error response headers:', error.response.headers);
-
-                // Show the actual error message from the server if available
                 if (typeof error.response.data === 'string') {
                     setError(error.response.data);
                 } else if (error.response.data && error.response.data.message) {
@@ -148,14 +156,12 @@ export default function Login() {
                     setError(`Login failed: ${error.response.status === 401 ? 'Invalid credentials' : 'Server error'}`);
                 }
             } else if (error.request) {
-                // The request was made but no response was received
-                console.error('No response received:', error.request);
-                setError('No response from server. Please try again later.');
+                setError('No response from server. Please check your internet connection.');
             } else {
-                // Something happened in setting up the request that triggered an Error
-                console.error('Request setup error:', error.message);
                 setError(`Error: ${error.message}`);
             }
+
+            setIsLoading(false);
         }
     };
 
@@ -163,7 +169,7 @@ export default function Login() {
         <div className="login">
             <h1>Login</h1>
             <form onSubmit={handleSubmit} className="login-form">
-                {error && <div className="error-message">{error}</div>} {/* Show error message if exists */}
+                {error && <div className="error-message">{error}</div>}
                 <div className="form-group">
                     <label htmlFor="email">Email</label>
                     <input
@@ -172,6 +178,7 @@ export default function Login() {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
+                        disabled={isLoading}
                         required
                     />
                 </div>
@@ -183,11 +190,16 @@ export default function Login() {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
+                        disabled={isLoading}
                         required
                     />
                 </div>
-                <button type="submit" className="login-button">
-                    Login
+                <button
+                    type="submit"
+                    className="login-button"
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Logging in...' : 'Login'}
                 </button>
             </form>
         </div>

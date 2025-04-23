@@ -26,6 +26,19 @@ export default function Characters() {
     const navigate = useNavigate();
     const { setSelectedCharacter } = useUser();
 
+    // Test if localStorage is working
+    useEffect(() => {
+        try {
+            const testKey = "test-" + new Date().getTime();
+            localStorage.setItem(testKey, "working");
+            const result = localStorage.getItem(testKey);
+            localStorage.removeItem(testKey);
+            console.log("localStorage test:", result === "working" ? "WORKING" : "FAILED");
+        } catch (e) {
+            console.error("localStorage test failed with error:", e);
+        }
+    }, []);
+
     useEffect(() => {
         const fetchCharacters = async () => {
             try {
@@ -49,17 +62,15 @@ export default function Characters() {
                     const firstChar = response.data[0];
                     console.log("First character structure:", JSON.stringify(firstChar, null, 2));
                     console.log("Available properties:", Object.keys(firstChar).join(", "));
-                    // Log all possible ID properties
-                    console.log("id:", firstChar.id);
-                    console.log("Id:", firstChar.Id);
-                    console.log("ID:", firstChar.ID);
-                    console.log("characterId:", firstChar.characterId);
-                    console.log("CharacterId:", firstChar.CharacterId);
                 }
 
                 // Ensure all characters have an id property
                 const processedCharacters = response.data.map(char => {
-                    let id = char.id || char.Id || char.ID || char.characterId || char.CharacterId;
+                    // Find the character ID regardless of property name
+                    let id = char.id || char.Id || char.ID ||
+                        char.characterId || char.CharacterId ||
+                        char.characterID;
+
                     return { ...char, id: id };
                 });
 
@@ -86,9 +97,10 @@ export default function Characters() {
                 return;
             }
 
-            // Get the characterId (clearly available from your console logs)
-            const characterId = character.characterId || character.id;
-            console.log("Using character ID:", characterId);
+            // Find the character ID regardless of property name
+            let characterId = character.id || character.Id || character.ID ||
+                character.characterId || character.CharacterId ||
+                character.characterID;
 
             if (!characterId) {
                 console.error("No valid ID found in character object");
@@ -96,35 +108,55 @@ export default function Characters() {
                 return;
             }
 
-            // IMPORTANT: Clear localStorage and sessionStorage first
+            console.log("Using character ID:", characterId);
+
+            // IMPORTANT: Clear existing storage first
             localStorage.removeItem('selectedCharacter');
             sessionStorage.removeItem('selectedCharacter');
-            console.log("Cleared existing character data from storage");
+            console.log("Cleared existing storage");
 
-            // Ensure the saved character has both id and characterId properties
+            // Create a normalized character object
             const characterToSave = {
                 ...character,
-                id: characterId, // Ensure id exists
-                characterId: characterId // Ensure characterId exists
+                id: characterId,
+                characterId: characterId
             };
 
             // Save to localStorage with explicit stringification
             const jsonString = JSON.stringify(characterToSave);
-            console.log("Saving character JSON:", jsonString);
+            console.log("Character JSON to save:", jsonString);
 
             // Try multiple storage methods for redundancy
-            localStorage.setItem('selectedCharacter', jsonString);
-            sessionStorage.setItem('selectedCharacter', jsonString); // Backup in session storage
+            try {
+                // Try localStorage first
+                localStorage.setItem('selectedCharacter', jsonString);
+                console.log("Saved to localStorage");
 
-            // Verify storage worked
-            const storedValue = localStorage.getItem('selectedCharacter');
-            console.log("Verification - localStorage contains:", storedValue);
+                // Also save to sessionStorage as backup
+                sessionStorage.setItem('selectedCharacter', jsonString);
+                console.log("Saved to sessionStorage");
+
+                // Add timestamp for debugging
+                localStorage.setItem('characterSelectedTime', new Date().toString());
+                console.log("Saved selection timestamp");
+
+                // Verify storage worked
+                const storedValue = localStorage.getItem('selectedCharacter');
+                console.log("Verification - localStorage contains:", storedValue ? "SUCCESS" : "FAILED");
+
+                if (!storedValue) {
+                    throw new Error("localStorage verification failed");
+                }
+            } catch (storageError) {
+                console.error("Error saving to storage:", storageError);
+                // Continue anyway - we can rely on context if storage fails
+            }
 
             // Update context
             setSelectedCharacter(characterToSave);
             console.log("Character set in context");
 
-            // API call with correct ID - use characterId as the property name
+            // API call with correct ID
             try {
                 console.log("Sending selection to backend with payload:", { CharacterId: characterId });
                 await axios.post(
@@ -137,16 +169,45 @@ export default function Characters() {
                         }
                     }
                 );
+                console.log("Server updated with character selection");
             } catch (apiError) {
-                // Continue despite API errors - we've saved locally
                 console.error("API error during character selection:", apiError);
+
+                // Try alternative payload format if the first one failed
+                if (apiError.response && apiError.response.status === 400) {
+                    try {
+                        console.log("Trying alternative payload format");
+                        await axios.post(
+                            'http://localhost:5233/api/character/select-character',
+                            { characterId: characterId },
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+                        console.log("Alternative format succeeded");
+                    } catch (altError) {
+                        console.error("Alternative format also failed:", altError.message);
+                    }
+                }
             }
 
-            // Navigate to dashboard with a slight delay
+            // Final verification check
+            const finalCheck = localStorage.getItem('selectedCharacter');
+            const sessionCheck = sessionStorage.getItem('selectedCharacter');
+            console.log("Final storage check:", {
+                localStorage: finalCheck ? "PRESENT" : "MISSING",
+                sessionStorage: sessionCheck ? "PRESENT" : "MISSING"
+            });
+
+            // Navigate to dashboard with a slight delay to ensure storage is completed
             console.log("Character selected successfully, navigating to dashboard");
             setTimeout(() => {
                 navigate('/dashboard');
             }, 500);
+
         } catch (error) {
             console.error("Critical error selecting character:", error);
             setError("Failed to select character. Please try again.");
