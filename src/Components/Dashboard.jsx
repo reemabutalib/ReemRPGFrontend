@@ -74,155 +74,77 @@ function Dashboard() {
     const [showDebugPanel, setShowDebugPanel] = useState(false);
     const [localCharacterData, setLocalCharacterData] = useState(null);
 
-    // Update the first useEffect to address the ESLint warning
     useEffect(() => {
         const token = localStorage.getItem('authToken');
-        console.log("Dashboard - Auth token exists:", token ? "true" : "false");
-
         if (!token) {
-            navigate('/login');
+            navigate('/login', { replace: true });
             return;
         }
 
-        // Try to get character from localStorage/sessionStorage
         const storedCharacter = localStorage.getItem('selectedCharacter') ||
             sessionStorage.getItem('selectedCharacter');
-        console.log("Dashboard - Stored character:", storedCharacter ? "Found" : "Not found");
-
         if (storedCharacter) {
             try {
                 const parsedCharacter = JSON.parse(storedCharacter);
-                console.log("Using character from localStorage");
-                setLocalCharacterData(parsedCharacter); // Store in local state instead of context
-                setLoading(false);
-            } catch (err) {
-                console.error("Error parsing stored character:", err);
+                setLocalCharacterData(parsedCharacter);
+            } catch {
                 setError("Invalid character data. Please select a character again.");
-                setLoading(false);
             }
         } else if (!selectedCharacter) {
-            console.error("No character found in context or storage");
             setError("No character selected. Please select a character.");
-            setLoading(false);
-        } else {
-            console.log("Using character from context");
-
-            // Save to storage for persistence, but only if we haven't already processed this character
-            try {
-                // Store in local state first
-                setLocalCharacterData(selectedCharacter);
-
-                // Then save to storage
-                const characterString = JSON.stringify(selectedCharacter);
-                localStorage.setItem('selectedCharacter', characterString);
-                sessionStorage.setItem('selectedCharacter', characterString);
-            } catch (err) {
-                console.error("Error saving character to storage:", err);
-            }
-
-            setLoading(false);
         }
 
-        // Add selectedCharacter to the dependency array, but use a ref to prevent infinite loops
-    }, [navigate, selectedCharacter]); // Include selectedCharacter in dependencies
+        setLoading(false);
+    }, [navigate, selectedCharacter]);
 
-    // Then modify your second useEffect to prevent the loop:
     useEffect(() => {
-        // Only update context if localCharacterData exists and there's no selectedCharacter
-        // AND only if they're actually different objects
         if (localCharacterData && !selectedCharacter &&
             JSON.stringify(localCharacterData) !== JSON.stringify(selectedCharacter)) {
             setSelectedCharacter(localCharacterData);
         }
     }, [localCharacterData, selectedCharacter, setSelectedCharacter]);
 
-    // Third useEffect - handle debug panel keyboard shortcut
-    useEffect(() => {
-        // Press 'd' key 5 times to show debug panel
-        let keyPresses = 0;
-        let lastKeyTime = 0;
-
-        const keyHandler = (e) => {
-            const now = new Date().getTime();
-
-            if (e.key === 'd') {
-                // Only count keypresses within 2 seconds of each other
-                if (now - lastKeyTime < 2000) {
-                    keyPresses++;
-                } else {
-                    keyPresses = 1; // Reset if too much time passed
-                }
-
-                lastKeyTime = now;
-
-                if (keyPresses >= 5) {
-                    setShowDebugPanel(true);
-                }
-            } else {
-                keyPresses = 0;
-            }
-        };
-
-        document.addEventListener('keydown', keyHandler);
-        return () => {
-            document.removeEventListener('keydown', keyHandler);
-        };
-    }, []); // No dependencies - only run once
-
     const handleLogout = () => {
-        console.log("Logging out from Dashboard");
-        // Only clear auth token, not character
-        localStorage.removeItem("authToken");
-        navigate("/login");
+        localStorage.removeItem('authToken');
+        navigate('/login');
     };
 
-    if (loading) {
-        return <div className="dashboard loading">Loading...</div>;
-    }
+    if (loading) return <div className="dashboard loading">Loading...</div>;
 
     if (error) {
         return (
             <div className="dashboard error">
+                <h2>Error</h2>
                 <p>{error}</p>
-                <button onClick={() => navigate('/characters')}>Select Character</button>
+                <button onClick={() => navigate('/characters')} className="select-character-button">
+                    Select Character
+                </button>
             </div>
         );
     }
 
-    // Use either context character or local state character
     const displayCharacter = selectedCharacter || localCharacterData;
+    console.log("Dashboard - Display character:", displayCharacter);
 
     return (
         <div className="dashboard">
             <header>
                 <h1>Welcome to Your Dashboard</h1>
                 <button onClick={handleLogout} className="logout-button">Logout</button>
+                <button onClick={() => setShowDebugPanel(!showDebugPanel)} className="debug-toggle">
+                    {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+                </button>
             </header>
 
             {displayCharacter && (
                 <div className="character-info">
                     <h2>{displayCharacter.name}</h2>
-                    <div className="character-stats">
-                        <p>Class: {displayCharacter.class || displayCharacter.className}</p>
-                        <p>Level: {displayCharacter.level}</p>
-                        <p>Health: {displayCharacter.health}</p>
-                        <p>Attack Power: {displayCharacter.attackPower}</p>
-                        <p>Gold: {displayCharacter.gold}</p>
-                        <p>Experience: {displayCharacter.experience}</p>
-                    </div>
-
-                    {displayCharacter.items && displayCharacter.items.length > 0 && (
-                        <div className="character-inventory">
-                            <h3>Inventory</h3>
-                            <ul>
-                                {displayCharacter.items.map((item, index) => (
-                                    <li key={item.id || index}>
-                                        {item.name} - {item.description}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                    <p>Class: {displayCharacter.class || displayCharacter.className}</p>
+                    <p>Level: {displayCharacter.level}</p>
+                    <p>Health: {displayCharacter.health}</p>
+                    <p>Attack Power: {displayCharacter.attackPower}</p>
+                    <p>Gold: {displayCharacter.gold}</p>
+                    <p>Experience: {displayCharacter.experience}</p>
                 </div>
             )}
 

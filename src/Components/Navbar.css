@@ -7,10 +7,19 @@
     color: white;
 }
 
-.navbar-logo {
-    font-size: 1.5rem;
-    font-weight: bold;
+.navbar-brand {
     cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.navbar-logo {
+    height: 40px;
+    transition: transform 0.2s ease;
+}
+
+.navbar-logo:hover {
+    transform: scale(1.05);
 }
 
 .navbar-links {

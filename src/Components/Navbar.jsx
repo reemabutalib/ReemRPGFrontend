@@ -1,3 +1,4 @@
+import logo from "@/assets/images/ReemRPGlogo.png";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { handleLogout } from "./Auth/Logout"; // Import the handleLogout function
@@ -8,12 +9,16 @@ const Navbar = ({ showLogout }) => {
 
     return (
         <nav className="navbar">
-            <h1
-                className="navbar-logo"
+            <div
+                className="navbar-brand"
                 onClick={() => navigate('/')}
             >
-                Reem RPG
-            </h1>
+                <img
+                    src={logo}
+                    alt="Reem RPG Logo"
+                    className="navbar-logo"
+                />
+            </div>
             <div className="navbar-links">
                 <span onClick={() => navigate('/dashboard')} className="navbar-link">Dashboard</span>
                 <span onClick={() => navigate('/characters')} className="navbar-link">Characters</span>

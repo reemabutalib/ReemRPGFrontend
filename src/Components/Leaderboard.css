@@ -195,22 +195,3 @@
     font-weight: 500;
     color: #555;
 }
-
-.leaderboard-notice {
-    padding: 10px 15px;
-    margin-bottom: 15px;
-    border-radius: 4px;
-}
-
-.leaderboard-notice.info {
-    color: #0c5460;
-    background-color: #d1ecf1;
-    border-left: 4px solid #bee5eb;
-}
-
-.mock-data-notice {
-    font-style: italic;
-    font-size: 1em;
-    color: #0c5460;
-    text-align: center;
-}

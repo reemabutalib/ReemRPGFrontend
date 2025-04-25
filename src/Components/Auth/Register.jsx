@@ -49,10 +49,6 @@ export default function Register() {
             // Clear any previous error messages
             setErrorMessages([]);
 
-            // Redirect to login page after a short delay (2 seconds)
-            setTimeout(() => {
-                navigate("/login");
-            }, 2000);
         } catch (err) {
             if (err.response) {
                 console.error("Server Error:", err.response.data);
@@ -64,12 +60,22 @@ export default function Register() {
         }
     };
 
+    // Replace your current return statement with this:
+
     return (
         <div className="register">
             <h1>Sign Up</h1>
             {registrationSuccess ? (
                 <div className="success-message">
-                    <p>Registration successful! Redirecting to login page...</p>
+                    <p>Registration successful!</p>
+                    <p>Please check your email to verify your account before logging in.</p>
+                    <p>A verification link has been sent to your email address.</p>
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="login-nav-button"
+                    >
+                        Go to Login
+                    </button>
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="register-form">

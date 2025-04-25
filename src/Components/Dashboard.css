@@ -1,3 +1,54 @@
+/* Add this at the top of your file */
+.dashboard-container {
+    background-color: #000;
+    color: #f0f0f0;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Update text colors for better visibility on dark background */
+h1, h2, h3, h4, h5, h6 {
+    color: #fff;
+}
+
+p, span, div {
+    color: #f0f0f0;
+}
+
+/* Style cards and panels with dark theme */
+.dashboard-card {
+    background-color: #111;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Style tables with dark theme */
+table {
+    background-color: #1a1a1a;
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+th {
+    background-color: #2c3e50;
+    color: white;
+    text-align: left;
+    padding: 12px;
+}
+
+td {
+    border-bottom: 1px solid #333;
+    padding: 12px;
+}
+
+tr:hover {
+    background-color: #222;
+}
+
+/* Keep your existing styles */
 .dashboard-header {
     display: flex;
     justify-content: flex-end;
