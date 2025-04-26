@@ -42,3 +42,40 @@
 .character-card button:hover {
     background-color: #0056b3;
 }
+
+.welcome-message {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 4px solid #3498db;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.welcome-message h2 {
+    margin-top: 0;
+    color: #3498db;
+}
+
+.welcome-message p {
+    margin-bottom: 15px;
+}
+
+.dismiss-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.dismiss-button:hover {
+    background-color: #2980b9;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

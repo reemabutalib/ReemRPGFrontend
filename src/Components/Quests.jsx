@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/userContext";
 import "./Quests.css";
+import { checkAndRefreshToken } from "./Utils/AuthUtils.jsx";
 
 const QuestCard = ({ quest, onDoQuest, isDisabled, characterLevel }) => {
     const isLevelTooLow = characterLevel < quest.requiredLevel;
@@ -21,6 +22,7 @@ const QuestCard = ({ quest, onDoQuest, isDisabled, characterLevel }) => {
             <button
                 onClick={() => onDoQuest(quest)}
                 disabled={isDisabled || isLevelTooLow}
+                className={isLevelTooLow ? 'disabled-button' : ''}
             >
                 {isLevelTooLow ? `Requires Level ${quest.requiredLevel}` : 'Attempt Quest'}
             </button>
@@ -28,98 +30,176 @@ const QuestCard = ({ quest, onDoQuest, isDisabled, characterLevel }) => {
     );
 };
 
-const QuestResult = ({ result, onClose }) => {
-    if (!result) return null;
-
-    return (
-        <div className="quest-result">
-            <div className="quest-result-content">
-                <h2>{result.success ? 'Quest Completed!' : 'Quest Failed'}</h2>
-                {result.success ? (
-                    <div className="quest-rewards">
-                        <p>Experience gained: <span>{result.rewards.experience}</span></p>
-                        <p>Gold earned: <span>{result.rewards.gold}</span></p>
-                        {result.rewards.item && (
-                            <p>Item received: <span>{result.rewards.item.name}</span></p>
-                        )}
-                    </div>
-                ) : (
-                    <p>{result.message || 'Better luck next time!'}</p>
-                )}
-                <button onClick={onClose}>Continue</button>
-            </div>
-        </div>
-    );
-};
-
-const Quests = () => {
+export default function Quests() {
     const navigate = useNavigate();
-    const { selectedCharacter, setSelectedCharacter } = useUser();
+    const { selectedCharacter, setSelectedCharacter, userId, debugStoredCharacters } = useUser();
     const [quests, setQuests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [result, setResult] = useState(null);
     const [processingQuest, setProcessingQuest] = useState(false);
+    const [result, setResult] = useState(null);
 
-    useEffect(() => {
-        // Check if we have a character
-        if (!selectedCharacter) {
-            navigate('/characters');
-            return;
+    // Get character from context or localStorage - now with user-specific storage
+    const getCharacter = () => {
+        // First try from context - this is already user-specific
+        if (selectedCharacter) return selectedCharacter;
+
+        try {
+            // If no character in context, try from user-specific localStorage
+            if (userId) {
+                const userCharacterKey = `selectedCharacter_${userId}`;
+                const storedCharacter = localStorage.getItem(userCharacterKey);
+                if (storedCharacter) {
+                    return JSON.parse(storedCharacter);
+                }
+            }
+
+            // Fall back to the old non-user-specific key (for backward compatibility)
+            const storedCharacter = localStorage.getItem('selectedCharacter');
+            return storedCharacter ? JSON.parse(storedCharacter) : null;
+        } catch (e) {
+            console.error("Error parsing character from localStorage", e);
+            return null;
         }
+    };
 
+    const character = getCharacter();
+
+    // If no character, redirect to select one
+    useEffect(() => {
+        if (!character) {
+            navigate('/characters');
+        }
+    }, [character, navigate]);
+
+    // Log debug info on component mount
+    useEffect(() => {
+        console.log("Quest component - Current userId:", userId);
+        console.log("Quest component - Current character:", character);
+
+        // Use the debug function from context if available
+        if (debugStoredCharacters) {
+            debugStoredCharacters();
+        }
+    }, [userId, character, debugStoredCharacters]);
+
+    // Fetch quests
+    useEffect(() => {
         const fetchQuests = async () => {
+            // First check if token is valid
+            const isTokenValid = await checkAndRefreshToken();
+
+            if (!isTokenValid) {
+                console.error("Invalid or missing token");
+                setError("Authentication required");
+                setLoading(false);
+                navigate('/login');
+                return;
+            }
+
             try {
                 const token = localStorage.getItem('authToken');
-                const response = await axios.get("http://localhost:5233/api/quest", {
+                console.log("Fetching quests with token:", token.substring(0, 15) + "...");
+
+                const response = await axios.get('http://localhost:5233/api/quest', {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
+
                 console.log("Quests loaded:", response.data);
                 setQuests(response.data);
                 setLoading(false);
             } catch (err) {
                 console.error("Error fetching quests:", err);
-                setError("Failed to load quests: " + (err.response?.data || err.message));
+                setError("Failed to load quests");
                 setLoading(false);
+
+                // If unauthorized, redirect to login
+                if (err.response?.status === 401) {
+                    localStorage.removeItem('authToken');
+                    navigate('/login');
+                }
             }
         };
 
         fetchQuests();
-    }, [navigate, selectedCharacter]);
+    }, [navigate]);
 
-    // Modify the handleQuestAttempt function in your Quests.jsx component:
-
+    // Function to handle quest attempts 
     const handleQuestAttempt = async (quest) => {
         if (processingQuest) return;
 
         setProcessingQuest(true);
-        try {
-            console.log(`Attempting quest: ${quest.title} (ID: ${quest.id})`);
+        setResult(null);
 
+        // Check if token is valid before attempting quest
+        const isTokenValid = await checkAndRefreshToken();
+
+        if (!isTokenValid) {
+            console.error("Invalid or missing token for quest attempt");
+            setError("Authentication required");
+            setProcessingQuest(false);
+            navigate('/login');
+            return;
+        }
+
+        try {
+            // Get a fresh token each time
             const token = localStorage.getItem('authToken');
-            const characterId = selectedCharacter.characterId || selectedCharacter.id;
+            if (!token) {
+                console.error("No auth token found for quest attempt");
+                setError("Authentication required");
+                navigate('/login');
+                return;
+            }
+
+            console.log("Attempting quest:", quest.title, "ID:", quest.id);
+
+            const characterObj = getCharacter();
+            if (!characterObj) {
+                setError("No character selected");
+                return;
+            }
+
+            // Get character ID with fallbacks for different property names
+            let characterId = null;
+
+            if (characterObj.characterId !== undefined) {
+                characterId = characterObj.characterId;
+            } else if (characterObj.id !== undefined) {
+                characterId = characterObj.id;
+            } else if (characterObj.CharacterId !== undefined) {
+                characterId = characterObj.CharacterId;
+            }
+
+            if (!characterId) {
+                console.error("Could not find character ID in:", characterObj);
+                setError("Invalid character data");
+                return;
+            }
+
+            const questId = quest.id || quest.questId || quest.QuestId;
 
             console.log("Character attempting quest:", {
-                characterId: characterId,
-                questId: quest.id
+                CharacterId: characterId,
+                QuestId: questId
             });
 
-            // Match payload exactly to your C# model properties
+            // IMPORTANT: Use PascalCase for C# backend
             const payload = {
                 CharacterId: characterId,
-                QuestId: quest.id
+                QuestId: questId
             };
 
             console.log("Sending quest attempt payload:", payload);
 
             const response = await axios.post(
-                `http://localhost:5233/api/quest/attempt`,
+                'http://localhost:5233/api/quest/attempt',
                 payload,
                 {
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 }
@@ -127,64 +207,71 @@ const Quests = () => {
 
             console.log("Quest attempt response:", response.data);
 
-            // Process the response
+            // Process successful response
             if (response.data) {
-                // Parse response based on your backend's actual response structure
-                const success = response.data.success;
-
-                let questResult = {
-                    success: success,
-                    rewards: {}
+                const questResult = {
+                    success: response.data.success,
+                    experience: response.data.experienceGained,
+                    gold: response.data.goldGained,
+                    message: response.data.message,
+                    levelUp: response.data.levelUp,
+                    newLevel: response.data.newLevel
                 };
 
-                if (success) {
-                    // Backend seems to return the quest object as rewards
-                    questResult.rewards = {
-                        experience: quest.experienceReward,
-                        gold: quest.goldReward
-                    };
+                setResult(questResult);
 
-                    // Update character stats
+                // If successful, update character
+                if (questResult.success) {
                     const updatedCharacter = {
-                        ...selectedCharacter,
-                        experience: (selectedCharacter.experience || 0) + quest.experienceReward,
-                        gold: (selectedCharacter.gold || 0) + quest.goldReward
+                        ...characterObj,
+                        experience: (characterObj.experience || 0) + questResult.experience,
+                        gold: (characterObj.gold || 0) + questResult.gold
                     };
 
-                    // Check for level up (simple implementation)
-                    const xpForLevel = (lvl) => lvl * 1000; // Simple formula
-                    const currentLevel = selectedCharacter.level || 1;
-
-                    if (updatedCharacter.experience >= xpForLevel(currentLevel)) {
-                        updatedCharacter.level = currentLevel + 1;
+                    // Update level if leveled up
+                    if (questResult.levelUp) {
+                        updatedCharacter.level = questResult.newLevel;
                     }
 
-                    // Update character in context and storage
+                    // Use context's setSelectedCharacter which now handles user-specific storage
                     setSelectedCharacter(updatedCharacter);
-                    localStorage.setItem('selectedCharacter', JSON.stringify(updatedCharacter));
-                    sessionStorage.setItem('selectedCharacter', JSON.stringify(updatedCharacter));
-
-                    // Show result with rewards
-                    setResult(questResult);
-                } else {
-                    // Quest failed
-                    setResult({
-                        success: false,
-                        message: "You failed the quest. Try again when you're stronger."
-                    });
                 }
             }
         } catch (err) {
             console.error("Error attempting quest:", err);
 
-            // Show more detailed error message for debugging
             let errorMessage = "Failed to complete quest";
             if (err.response) {
-                errorMessage += `: ${err.response.status} - ${JSON.stringify(err.response.data)}`;
-            } else if (err.request) {
-                errorMessage += ": No response received from server";
-            } else {
-                errorMessage += `: ${err.message}`;
+                console.error("Server response:", err.response.status, err.response.data);
+                errorMessage = err.response.data?.message || err.response.data || `Server error: ${err.response.status}`;
+
+                // Handle unauthorized
+                if (err.response.status === 401) {
+                    console.error("Authentication failed. Token may be expired.");
+                    localStorage.removeItem('authToken');
+                    navigate('/login');
+                    return;
+                }
+
+                // Handle "Character not found or doesn't belong to you"
+                if (err.response.status === 400 &&
+                    (typeof err.response.data === 'string' &&
+                        err.response.data.includes("Character not found"))) {
+
+                    console.error("Character ownership issue:", err.response.data);
+                    errorMessage = "This character doesn't belong to your account or wasn't found";
+
+                    // Use user ID-specific key if available
+                    if (userId) {
+                        localStorage.removeItem(`selectedCharacter_${userId}`);
+                    }
+
+                    // Also remove the legacy key for backward compatibility
+                    localStorage.removeItem('selectedCharacter');
+
+                    // Redirect after showing error
+                    setTimeout(() => navigate('/characters'), 2000);
+                }
             }
 
             setResult({
@@ -196,39 +283,107 @@ const Quests = () => {
         }
     };
 
-    const closeQuestResult = () => {
-        setResult(null);
-    };
+    if (loading) {
+        return (
+            <div className="quests-container">
+                <h1>Loading Quests...</h1>
+                <div className="loading-spinner"></div>
+            </div>
+        );
+    }
 
-    if (loading) return <div className="quests loading">Loading quests...</div>;
-    if (error) return <div className="quests error">{error}</div>;
+    if (error) {
+        return (
+            <div className="quests-container error">
+                <h1>Error</h1>
+                <p>{error}</p>
+                <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+            </div>
+        );
+    }
+
+    if (!character) {
+        return (
+            <div className="quests-container">
+                <h1>No Character Selected</h1>
+                <p>Please select a character to view quests.</p>
+                <button onClick={() => navigate('/characters')}>Select Character</button>
+            </div>
+        );
+    }
 
     return (
-        <div className="quests">
-            <h1>Available Quests</h1>
+        <div className="quests-container">
+            <h1>Quests</h1>
 
-            <div className="character-status">
-                <h3>{selectedCharacter.name}</h3>
-                <p>Level: {selectedCharacter.level || 1}</p>
-                <p>Experience: {selectedCharacter.experience || 0}</p>
-                <p>Gold: {selectedCharacter.gold || 0}</p>
+            {/* Character Info */}
+            <div className="character-info">
+                <h2>{character.name}</h2>
+                <p>Level: {character.level} | Gold: {character.gold} | XP: {character.experience}</p>
             </div>
 
-            <div className="quest-list">
-                {quests.map((quest) => (
-                    <QuestCard
-                        key={quest.id}
-                        quest={quest}
-                        onDoQuest={handleQuestAttempt}
-                        isDisabled={processingQuest}
-                        characterLevel={selectedCharacter.level || 1}
-                    />
-                ))}
+            {/* Quest Results */}
+            {result && (
+                <div className={`quest-result ${result.success ? 'success' : 'failure'}`}>
+                    <h3>{result.success ? 'Quest Completed!' : 'Quest Failed'}</h3>
+                    <p>{result.message}</p>
+                    {result.success && (
+                        <div className="rewards">
+                            <p>Rewards: {result.experience} XP, {result.gold} Gold</p>
+                            {result.levelUp && (
+                                <p className="level-up">Level Up! You are now level {result.newLevel}</p>
+                            )}
+                        </div>
+                    )}
+                    <button onClick={() => setResult(null)}>Continue</button>
+                </div>
+            )}
+
+            {/* Quest List */}
+            <div className="quests-list">
+                {quests.length === 0 ? (
+                    <p>No quests available.</p>
+                ) : (
+                    quests.map(quest => (
+                        <QuestCard
+                            key={quest.id}
+                            quest={quest}
+                            onDoQuest={handleQuestAttempt}
+                            isDisabled={processingQuest}
+                            characterLevel={character.level || 1}
+                        />
+                    ))
+                )}
             </div>
 
-            <QuestResult result={result} onClose={closeQuestResult} />
+            <button
+                onClick={() => navigate('/dashboard')}
+                className="back-button"
+            >
+                Back to Dashboard
+            </button>
+
+            {/* Debug info - only show during development */}
+            <div className="debug-info">
+                <details>
+                    <summary>Debug Info</summary>
+                    <p>User ID: {userId || "Unknown"}</p>
+                    <p>Character ID: {character.characterId || character.id}</p>
+                    <p>Character Storage Key: {userId ? `selectedCharacter_${userId}` : "No user ID available"}</p>
+                    <button
+                        onClick={() => {
+                            if (debugStoredCharacters) {
+                                debugStoredCharacters();
+                                alert("Check console for stored character info");
+                            } else {
+                                alert("Debug function not available");
+                            }
+                        }}
+                    >
+                        Check All Stored Characters
+                    </button>
+                </details>
+            </div>
         </div>
     );
-};
-
-export default Quests;
+}

@@ -1,3 +1,51 @@
+/* Verification message for login page */
+.verification-message {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left: 4px solid #3498db;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.resend-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+
+.resend-button:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.resend-button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+.success-message {
+    color: #2ecc71;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.success-message::before {
+    content: "✓";
+    font-weight: bold;
+}
+
 .verification-container {
     display: flex;
     justify-content: center;

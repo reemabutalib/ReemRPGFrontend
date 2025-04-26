@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import './Home.css';
 // @ts-ignore
@@ -44,147 +43,107 @@ const LeaderboardRow = ({ rank, player }) => {
 // Home Component
 export default function Home() {
     const navigate = useNavigate();
-    const [leaders, setLeaders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [filterBy, setFilterBy] = useState("experience");
 
-    // mock data for testing:
+    // Jumbled mock data for leaderboard - different players excel in different areas
     const mockLeaders = [
         {
             id: 1,
             name: "Arthas",
             class: "Warrior",
-            level: 25,
-            experience: 35000,
-            gold: 15200
+            level: 25,          // 5th highest level
+            experience: 38000,  // Highest XP
+            gold: 9200          // 7th highest gold
         },
         {
             id: 2,
             name: "Jaina",
             class: "Mage",
-            level: 22,
-            experience: 28500,
-            gold: 12800
+            level: 24,          // 6th highest level
+            experience: 28500,  // 3rd highest XP
+            gold: 12800         // 3rd highest gold
         },
         {
             id: 3,
             name: "Thrall",
             class: "Shaman",
-            level: 20,
-            experience: 25000,
-            gold: 9500
+            level: 27,          // 3rd highest level
+            experience: 25000,  // 5th highest XP
+            gold: 9500          // 6th highest gold
         },
         {
             id: 4,
             name: "Sylvanas",
             class: "Ranger",
-            level: 18,
-            experience: 20000,
-            gold: 8200
+            level: 22,          // 7th highest level
+            experience: 22000,  // 6th highest XP 
+            gold: 18200         // Highest gold
         },
         {
             id: 5,
             name: "Uther",
             class: "Paladin",
-            level: 17,
-            experience: 18000,
-            gold: 7800
+            level: 29,          // 2nd highest level
+            experience: 20000,  // 7th highest XP
+            gold: 7800          // 8th highest gold
         },
         {
             id: 6,
             name: "Ezra",
             class: "Mage",
-            level: 15,
-            experience: 15800,
-            gold: 6200
+            level: 21,          // 8th highest level
+            experience: 26800,  // 4th highest XP
+            gold: 16200         // 2nd highest gold
         },
         {
             id: 7,
             name: "Varian",
             class: "Warrior",
-            level: 14,
-            experience: 12500,
-            gold: 5800
+            level: 31,          // Highest level
+            experience: 18500,  // 9th highest XP
+            gold: 5800          // 9th highest gold
         },
         {
             id: 8,
             name: "Tyrande",
             class: "Priest",
-            level: 13,
-            experience: 11000,
-            gold: 5200
+            level: 19,          // 9th highest level
+            experience: 31000,  // 2nd highest XP
+            gold: 4200          // 10th highest gold
         },
         {
             id: 9,
             name: "Malfurion",
             class: "Druid",
-            level: 12,
-            experience: 9800,
-            gold: 4700
+            level: 26,          // 4th highest level
+            experience: 17800,  // 10th highest XP
+            gold: 10700         // 5th highest gold
         },
         {
             id: 10,
             name: "Gul'dan",
             class: "Warlock",
-            level: 10,
-            experience: 8500,
-            gold: 4200
+            level: 18,          // 10th highest level
+            experience: 19500,  // 8th highest XP
+            gold: 11200         // 4th highest gold
         }
     ];
 
-    // In your useEffect, change this section of code:
-    useEffect(() => {
-        const fetchLeaderboard = async () => {
-            try {
-                setLoading(true);
-                setError(null);
+    // Sort leaderboard based on selected filter
+    const getSortedLeaders = () => {
+        const sortedLeaders = [...mockLeaders];
+        if (filterBy === "level") {
+            return sortedLeaders.sort((a, b) => b.level - a.level);
+        } else if (filterBy === "gold") {
+            return sortedLeaders.sort((a, b) => b.gold - a.gold);
+        } else {
+            // Default to experience
+            return sortedLeaders.sort((a, b) => b.experience - a.experience);
+        }
+    };
 
-                // Debug the request URL
-                const requestUrl = `http://localhost:5233/api/leaderboard?sortBy=${filterBy}`;
-                console.log("Fetching leaderboard from:", requestUrl);
-
-                const response = await axios.get(requestUrl);
-
-                console.log("Leaderboard response:", response.data);
-
-                // Check if the data is an array before setting
-                if (Array.isArray(response.data)) {
-                    setLeaders(response.data);
-                } else {
-                    console.error("Unexpected data format:", response.data);
-                    // Use mock data instead of showing an error
-                    loadMockData(); // Renamed from useDefaultData
-                }
-            } catch (err) {
-                console.error("Error fetching leaderboard:", err);
-                console.log("Using mock leaderboard data");
-                loadMockData(); // Renamed from useDefaultData
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        // Rename the function from useDefaultData to loadMockData
-        const loadMockData = () => {
-            // Sort mock data based on filterBy parameter
-            let sortedMockData = [...mockLeaders];
-            if (filterBy === "level") {
-                sortedMockData.sort((a, b) => b.level - a.level);
-            } else if (filterBy === "gold") {
-                sortedMockData.sort((a, b) => b.gold - a.gold);
-            } else {
-                // Default to experience
-                sortedMockData.sort((a, b) => b.experience - a.experience);
-            }
-
-            // Set the leaders to the mock data
-            setLeaders(sortedMockData);
-            setError("demo");
-        };
-
-        fetchLeaderboard();
-    }, [filterBy]);
+    // Get the sorted leaders
+    const leaders = getSortedLeaders();
 
     return (
         <main className="home">
@@ -258,49 +217,31 @@ export default function Home() {
                 </div>
 
                 <div className="leaderboard">
-                    {loading ? (
-                        <div className="leaderboard-loading">
-                            <div className="spinner"></div>
-                            <p>Loading top players...</p>
+                    <div className="leaderboard-notice info">
+                        <p className="mock-data-notice">
+                            This is demo data for preview purposes.
+                        </p>
+                    </div>
+
+                    <div className="leaderboard-header">
+                        <div className="rank">Rank</div>
+                        <div className="player-info">Player</div>
+                        <div className="player-stats">
+                            <div className="stat">Level</div>
+                            <div className="stat">XP</div>
+                            <div className="stat">Gold</div>
                         </div>
-                    ) : (
-                        <>
-                            {error === "demo" && (
-                                <div className="leaderboard-notice info">
-                                    <p className="mock-data-notice">
-                                        This is demo data for preview purposes.
-                                    </p>
-                                </div>
-                            )}
+                    </div>
 
-                            {/* Always show the leaderboard if we have leaders */}
-                            {leaders.length > 0 ? (
-                                <>
-                                    <div className="leaderboard-header">
-                                        <div className="rank">Rank</div>
-                                        <div className="player-info">Player</div>
-                                        <div className="player-stats">
-                                            <div className="stat">Level</div>
-                                            <div className="stat">XP</div>
-                                            <div className="stat">Gold</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="leaderboard-body">
-                                        {leaders.slice(0, 10).map((player, index) => (
-                                            <LeaderboardRow
-                                                key={player.id || index}
-                                                rank={index + 1}
-                                                player={player}
-                                            />
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="leaderboard-empty">No adventurers yet. Be the first!</div>
-                            )}
-                        </>
-                    )}
+                    <div className="leaderboard-body">
+                        {leaders.slice(0, 10).map((player, index) => (
+                            <LeaderboardRow
+                                key={player.id || index}
+                                rank={index + 1}
+                                player={player}
+                            />
+                        ))}
+                    </div>
                 </div>
 
                 <div className="leaderboard-cta">

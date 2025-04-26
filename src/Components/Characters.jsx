@@ -5,40 +5,25 @@ import { useUser } from '../context/userContext';
 import './Characters.css';
 
 console.log("=== CHARACTERS COMPONENT LOADED ===");
-console.log("Local storage contents at load:", localStorage.getItem('selectedCharacter'));
-console.log("Session storage contents at load:", sessionStorage.getItem('selectedCharacter'));
-
-// Try to parse the character if it exists
-const storedChar = localStorage.getItem('selectedCharacter');
-if (storedChar) {
-    try {
-        const parsed = JSON.parse(storedChar);
-        console.log("Parsed character at load:", parsed);
-    } catch (e) {
-        console.error("Failed to parse stored character:", e);
-    }
-}
 
 export default function Characters() {
     const [characters, setCharacters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
     const navigate = useNavigate();
     const { setSelectedCharacter } = useUser();
 
-    // Test if localStorage is working
+    // Check if user is new
     useEffect(() => {
-        try {
-            const testKey = "test-" + new Date().getTime();
-            localStorage.setItem(testKey, "working");
-            const result = localStorage.getItem(testKey);
-            localStorage.removeItem(testKey);
-            console.log("localStorage test:", result === "working" ? "WORKING" : "FAILED");
-        } catch (e) {
-            console.error("localStorage test failed with error:", e);
+        const isNewUser = localStorage.getItem('newUser') === 'true';
+        if (isNewUser) {
+            setShowWelcomeMessage(true);
+            localStorage.removeItem('newUser'); // Clear the flag after use
         }
     }, []);
 
+    // Fetch characters
     useEffect(() => {
         const fetchCharacters = async () => {
             try {
@@ -57,14 +42,7 @@ export default function Characters() {
 
                 console.log("Characters loaded:", response.data);
 
-                // Debug to find the correct ID property
-                if (response.data && response.data.length > 0) {
-                    const firstChar = response.data[0];
-                    console.log("First character structure:", JSON.stringify(firstChar, null, 2));
-                    console.log("Available properties:", Object.keys(firstChar).join(", "));
-                }
-
-                // Ensure all characters have an id property
+                // Process characters to ensure consistent ID field
                 const processedCharacters = response.data.map(char => {
                     // Find the character ID regardless of property name
                     let id = char.id || char.Id || char.ID ||
@@ -97,6 +75,31 @@ export default function Characters() {
                 return;
             }
 
+            // Get user ID from token for user-specific storage
+            const getUserIdFromToken = () => {
+                try {
+                    // Extract userId from JWT token (simple parsing, not full validation)
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(window.atob(base64));
+                    const id = payload.nameid || payload.sub;
+
+                    console.log('Extracted userId from token for character selection:', id);
+                    return id;
+                } catch (err) {
+                    console.error('Error parsing token for userId:', err);
+                    return null;
+                }
+            };
+
+            const userId = getUserIdFromToken();
+            if (!userId) {
+                console.error("Could not extract user ID from token");
+                setError("Authentication error. Please log in again.");
+                navigate('/login');
+                return;
+            }
+
             // Find the character ID regardless of property name
             let characterId = character.id || character.Id || character.ID ||
                 character.characterId || character.CharacterId ||
@@ -110,10 +113,11 @@ export default function Characters() {
 
             console.log("Using character ID:", characterId);
 
-            // IMPORTANT: Clear existing storage first
+            // Clear existing storage first - both user-specific and legacy keys
             localStorage.removeItem('selectedCharacter');
-            sessionStorage.removeItem('selectedCharacter');
-            console.log("Cleared existing storage");
+            if (userId) {
+                localStorage.removeItem(`selectedCharacter_${userId}`);
+            }
 
             // Create a normalized character object
             const characterToSave = {
@@ -122,43 +126,42 @@ export default function Characters() {
                 characterId: characterId
             };
 
-            // Save to localStorage with explicit stringification
-            const jsonString = JSON.stringify(characterToSave);
-            console.log("Character JSON to save:", jsonString);
-
-            // Try multiple storage methods for redundancy
-            try {
-                // Try localStorage first
-                localStorage.setItem('selectedCharacter', jsonString);
-                console.log("Saved to localStorage");
-
-                // Also save to sessionStorage as backup
-                sessionStorage.setItem('selectedCharacter', jsonString);
-                console.log("Saved to sessionStorage");
-
-                // Add timestamp for debugging
-                localStorage.setItem('characterSelectedTime', new Date().toString());
-                console.log("Saved selection timestamp");
-
-                // Verify storage worked
-                const storedValue = localStorage.getItem('selectedCharacter');
-                console.log("Verification - localStorage contains:", storedValue ? "SUCCESS" : "FAILED");
-
-                if (!storedValue) {
-                    throw new Error("localStorage verification failed");
-                }
-            } catch (storageError) {
-                console.error("Error saving to storage:", storageError);
-                // Continue anyway - we can rely on context if storage fails
+            // Save to user-specific localStorage
+            if (userId) {
+                const userCharacterKey = `selectedCharacter_${userId}`;
+                localStorage.setItem(userCharacterKey, JSON.stringify(characterToSave));
+                console.log(`Saved character to user-specific storage: ${userCharacterKey}`);
             }
 
-            // Update context
+            // Also save to legacy key for backward compatibility
+            localStorage.setItem('selectedCharacter', JSON.stringify(characterToSave));
+
+            // Update context (which may also handle user-specific storage)
             setSelectedCharacter(characterToSave);
-            console.log("Character set in context");
+
+            console.log("Character selection complete:", {
+                character: characterToSave,
+                userId: userId
+            });
+
+            // Debug check all stored characters
+            console.log("=== CHECKING ALL CHARACTER STORAGE AFTER SELECTION ===");
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('selectedCharacter')) {
+                    try {
+                        const value = localStorage.getItem(key);
+                        const parsedChar = JSON.parse(value);
+                        console.log(`${key}:`, parsedChar.name, `(ID: ${parsedChar.characterId || parsedChar.id})`);
+                    } catch (err) {
+                        console.log(`${key}: [parse error - ${err.message}]`);
+                    }
+                }
+            }
+            console.log("====================================");
 
             // API call with correct ID
             try {
-                console.log("Sending selection to backend with payload:", { CharacterId: characterId });
                 await axios.post(
                     'http://localhost:5233/api/character/select-character',
                     { CharacterId: characterId },
@@ -172,11 +175,9 @@ export default function Characters() {
                 console.log("Server updated with character selection");
             } catch (apiError) {
                 console.error("API error during character selection:", apiError);
-
-                // Try alternative payload format if the first one failed
+                // Try alternative payload format if needed
                 if (apiError.response && apiError.response.status === 400) {
                     try {
-                        console.log("Trying alternative payload format");
                         await axios.post(
                             'http://localhost:5233/api/character/select-character',
                             { characterId: characterId },
@@ -187,29 +188,16 @@ export default function Characters() {
                                 }
                             }
                         );
-                        console.log("Alternative format succeeded");
                     } catch (altError) {
                         console.error("Alternative format also failed:", altError.message);
                     }
                 }
             }
 
-            // Final verification check
-            const finalCheck = localStorage.getItem('selectedCharacter');
-            const sessionCheck = sessionStorage.getItem('selectedCharacter');
-            console.log("Final storage check:", {
-                localStorage: finalCheck ? "PRESENT" : "MISSING",
-                sessionStorage: sessionCheck ? "PRESENT" : "MISSING"
-            });
-
-            // Navigate to dashboard with a slight delay to ensure storage is completed
-            console.log("Character selected successfully, navigating to dashboard");
-            setTimeout(() => {
-                navigate('/dashboard');
-            }, 500);
-
+            // Navigate to dashboard
+            navigate('/dashboard');
         } catch (error) {
-            console.error("Critical error selecting character:", error);
+            console.error("Error selecting character:", error);
             setError("Failed to select character. Please try again.");
         }
     };
@@ -229,12 +217,31 @@ export default function Characters() {
 
     return (
         <div className="characters-container">
-            <h1>Select Your Character</h1>
+            <h1>Your Characters</h1>
+
+            {/* Welcome message for new users */}
+            {showWelcomeMessage && (
+                <div className="welcome-message">
+                    <h2>Welcome to Reem RPG!</h2>
+                    <p>Create your first character to begin your adventure in this exciting world.</p>
+                    <button
+                        className="dismiss-button"
+                        onClick={() => setShowWelcomeMessage(false)}
+                    >
+                        Got it!
+                    </button>
+                </div>
+            )}
 
             {characters.length === 0 ? (
                 <div className="no-characters">
                     <p>You don't have any characters yet.</p>
-                    <button onClick={() => navigate('/create-character')}>Create a Character</button>
+                    <button
+                        onClick={() => navigate('/create-character')}
+                        className="create-character-btn"
+                    >
+                        Create Your First Character
+                    </button>
                 </div>
             ) : (
                 <div className="character-list">

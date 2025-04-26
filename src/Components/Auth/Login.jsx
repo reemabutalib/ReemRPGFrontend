@@ -2,8 +2,8 @@ import axios from 'axios';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useUser } from "../../context/userContext";
+import '../Auth/Verification.css';
 import './Login.css';
-
 
 console.log("=== LOGIN COMPONENT LOADED ===");
 console.log("localStorage contents at Login load:", {
@@ -20,6 +20,9 @@ export default function Login() {
     });
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [requiresVerification, setRequiresVerification] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [resendSuccess, setResendSuccess] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,27 +32,56 @@ export default function Login() {
         });
     };
 
+    const handleResendVerification = async () => {
+        setResendLoading(true);
+        setResendSuccess(false);
+        setError(null);
+
+        try {
+            const payload = {
+                email: formData.email,
+                password: formData.password
+            };
+
+            console.log("Sending verification resend request with payload:",
+                { email: payload.email, password: "********" });
+
+            const response = await axios.post(
+                'http://localhost:5233/api/account/resend-verification',
+                payload,
+                {
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+
+            console.log("Verification email resent successfully:", response.data);
+            setResendSuccess(true);
+        } catch (error) {
+            console.error('Error resending verification email:', error);
+            if (error.response) {
+                console.log("Error response data:", error.response.data);
+                console.log("Error response status:", error.response.status);
+            }
+            setError('Failed to resend verification email. Please try again.');
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
+        setRequiresVerification(false);
         setIsLoading(true);
 
-        // Add the localStorage test here
+        // Simple localStorage test
         localStorage.setItem('testValue', 'hello');
         const testResult = localStorage.getItem('testValue');
         console.log("Simple localStorage test:", testResult === 'hello' ? "WORKING" : "FAILED");
 
-        console.log("Login attempt with:", { email: formData.email, password: "********" });
-
         try {
-            // Step 1: Login API call
             console.log("Making login request...");
-            const response = await axios.post('http://localhost:5233/api/account/login', formData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
+            const response = await axios.post('http://localhost:5233/api/account/login', formData);
             console.log("Login successful:", response.status);
 
             const token = response.data.token;
@@ -57,108 +89,67 @@ export default function Login() {
                 throw new Error('Failed to retrieve token from login response.');
             }
 
-            // Step 2: Store token
+            // Store token
             localStorage.setItem('authToken', token);
             console.log("Token stored in localStorage");
 
-            // Replace the localStorage character check section with this:
+            // IMPORTANT: Clear any existing character data
+            localStorage.removeItem('selectedCharacter');
+            localStorage.removeItem('selectedCharacterId');
+            console.log("Cleared previous character selections");
 
-            // Step 3: IMPORTANT - Check for cached character FIRST
-            const localCharacter = localStorage.getItem('selectedCharacter') ||
-                sessionStorage.getItem('selectedCharacter');
-            console.log("Local character check:", localCharacter ? "FOUND" : "NOT FOUND");
-
-            if (localCharacter) {
-                console.log("Found cached character in localStorage");
-                try {
-                    const parsedCharacter = JSON.parse(localCharacter);
-                    console.log("Parsed character:", parsedCharacter);
-
-                    // Verify it's a valid character object with required properties
-                    if (parsedCharacter && parsedCharacter.name) {
-                        console.log("Using cached character:", parsedCharacter.name);
-                        setSelectedCharacter(parsedCharacter);
-
-                        // Navigate to dashboard immediately with cached character
-                        navigate('/dashboard');
-                        return; // Exit early - we've already navigated
-                    } else {
-                        console.log("Character found in localStorage but appears invalid");
-                        localStorage.removeItem('selectedCharacter'); // Remove invalid character
-                    }
-                } catch (parseError) {
-                    console.error("Error parsing cached character:", parseError);
-                    localStorage.removeItem('selectedCharacter');
-                    // Continue to server fetch
-                }
-            }
-
-            // Step 4: If no valid cached character, try fetching from server
-            console.log("No valid cached character, checking server...");
+            // Check if user has characters first
             try {
-                // Try to get character from server
-                const characterResponse = await axios.get('http://localhost:5233/api/character/get-selected-character', {
+                console.log("Checking if user has characters...");
+                const characterResponse = await axios.get('http://localhost:5233/api/character', {
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${token}`
                     }
                 });
 
-                console.log("Server character response:", characterResponse.data);
-
-                if (characterResponse.data) {
-                    // Save server character and go to dashboard
-                    localStorage.setItem('selectedCharacter', JSON.stringify(characterResponse.data));
-                    setSelectedCharacter(characterResponse.data);
-                    navigate('/dashboard');
-                } else {
-                    // No server character
-                    console.log("No character found on server, redirecting to selection");
+                // If user has no characters, go to character creation
+                if (!characterResponse.data ||
+                    (Array.isArray(characterResponse.data) && characterResponse.data.length === 0)) {
+                    console.log("No characters found for this user");
                     navigate('/characters');
+                    return;
                 }
-            } catch (fetchError) {
-                console.error("Error fetching selected character:", fetchError);
 
-                if (fetchError.response && fetchError.response.status === 404) {
-                    console.log("User has no character selected yet (404 response)");
+                console.log("User has characters:", characterResponse.data);
 
-                    // CRITICAL: Check if we have a character in localStorage despite a 404
-                    const fallbackCharacter = localStorage.getItem('selectedCharacter');
-                    if (fallbackCharacter) {
-                        try {
-                            console.log("Using fallback character from localStorage");
-                            const parsedFallback = JSON.parse(fallbackCharacter);
-                            setSelectedCharacter(parsedFallback);
-                            navigate('/dashboard');
-                            return;
-                        } catch (fallbackError) {
-                            console.error("Error using fallback character:", fallbackError);
-                        }
-                    }
+                // User has characters - select the first one
+                if (Array.isArray(characterResponse.data) && characterResponse.data.length > 0) {
+                    const firstCharacter = characterResponse.data[0];
+                    console.log("Auto-selecting first character:", firstCharacter);
 
-                    // If we reach here, then both server and localStorage have no character
-                    console.log("No character found, redirecting to character selection");
-                    navigate('/characters');
-                } else {
-                    // Other error, redirect to character selection
-                    console.log("Error fetching character, redirecting to character selection");
-                    navigate('/characters');
+                    // Save to localStorage
+                    localStorage.setItem('selectedCharacter', JSON.stringify(firstCharacter));
+
+                    // Update context
+                    setSelectedCharacter(firstCharacter);
+
+                    // Navigate to dashboard
+                    setTimeout(() => {
+                        console.log("Navigating to dashboard with character:", firstCharacter.name);
+                        navigate('/dashboard', { replace: true });
+                    }, 100);
                 }
+            } catch (characterError) {
+                console.error("Error checking characters:", characterError);
+                navigate('/characters');
             }
         } catch (error) {
             console.error('Login error:', error);
 
-            if (error.response) {
-                if (typeof error.response.data === 'string') {
-                    setError(error.response.data);
-                } else if (error.response.data && error.response.data.message) {
-                    setError(error.response.data.message);
-                } else {
-                    setError(`Login failed: ${error.response.status === 401 ? 'Invalid credentials' : 'Server error'}`);
-                }
-            } else if (error.request) {
-                setError('No response from server. Please check your internet connection.');
+            // Check for verification error
+            if (error.response?.data?.requiresVerification === true ||
+                error.response?.data?.message?.toLowerCase().includes('verify')) {
+                setRequiresVerification(true);
+                setError('Please verify your email before logging in.');
+            } else if (error.response) {
+                setError(error.response.data?.message || 'Invalid login credentials');
             } else {
-                setError(`Error: ${error.message}`);
+                setError('Could not connect to the server. Please try again later.');
             }
 
             setIsLoading(false);
@@ -170,6 +161,28 @@ export default function Login() {
             <h1>Login</h1>
             <form onSubmit={handleSubmit} className="login-form">
                 {error && <div className="error-message">{error}</div>}
+
+                {/* Verification UI Section */}
+                {requiresVerification && (
+                    <div className="verification-message">
+                        <p>Your email needs to be verified before logging in.</p>
+                        <button
+                            type="button"
+                            className="resend-button"
+                            onClick={handleResendVerification}
+                            disabled={resendLoading || resendSuccess}
+                        >
+                            {resendLoading ? 'Sending...' : 'Resend Verification Email'}
+                        </button>
+
+                        {resendSuccess && (
+                            <div className="success-message">
+                                Verification email sent! Please check your inbox.
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="form-group">
                     <label htmlFor="email">Email</label>
                     <input
@@ -202,6 +215,13 @@ export default function Login() {
                     {isLoading ? 'Logging in...' : 'Login'}
                 </button>
             </form>
+
+            <div className="register-link">
+                <p>Don't have an account?</p>
+                <button onClick={() => navigate('/register')} className="secondary-button">
+                    Register
+                </button>
+            </div>
         </div>
     );
 }
