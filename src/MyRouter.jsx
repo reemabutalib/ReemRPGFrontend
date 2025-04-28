@@ -5,11 +5,15 @@ import VerificationFailed from "@/Components/Auth/VerificationFailed";
 import VerificationSuccess from "@/Components/Auth/VerificationSuccess";
 import Characters from "@/Components/Characters";
 import Dashboard from "@/Components/Dashboard";
+import Home from "@/Components/Home";
 import Navbar from "@/Components/Navbar";
 import Quests from "@/Components/Quests";
 import TestPage from "@/Components/TestPage";
-import { useEffect } from "react";
+import { checkAndRefreshToken } from "@/Components/Utils/AuthUtils";
+import DevReset from "@/Components/Utils/DevReset"; // Add this import
+import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+
 
 // Create a route logger component
 function RouteLogger() {
@@ -19,149 +23,109 @@ function RouteLogger() {
         // Log route changes
         console.log('====== ROUTE CHANGED ======');
         console.log('Current route:', location.pathname);
-        console.log('Selected character:', localStorage.getItem('selectedCharacter'));
         console.log('Auth token exists:', !!localStorage.getItem('authToken'));
     }, [location]);
 
     return null; // This component doesn't render anything
 }
 
-// RouteLogger needs to be inside the Router, so let's create a wrapper
+// App Routes component
 function AppRoutes() {
-    useEffect(() => {
-        // Fix CSS issues that might be hiding content
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
-        document.body.style.minHeight = '100vh';
-        document.body.style.backgroundColor = '#f5f5f5';
-
-        // Find root element
-        const root = document.getElementById('root') || document.getElementById('app');
-        if (root) {
-            root.style.display = 'block';
-            root.style.minHeight = '100vh';
-            root.style.position = 'relative';
-        }
-
-        // Debug what elements are actually rendering
-        console.log('DOM structure:', document.body.innerHTML);
-
-        return () => {
-            document.body.style = '';
-            if (root) root.style = '';
-        };
-    }, []);
-
-    // In your AppRoutes component, update the routes section:
-
     return (
         <>
             <RouteLogger />
             <Routes>
-                {/* Public Routes */}
-                <Route index element={<Navigate to="/login" replace />} />
+                {/* Home Page - Public, doesn't require auth */}
+                <Route path="/" element={<Home />} />
+                <Route path="/home" element={<Home />} /> {/* Add explicit /home route */}
+
+                {/* Auth Routes */}
                 <Route element={<AuthLayout />}>
-                    <Route path="login" element={<Login />} />
-                    <Route path="register" element={<Register />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
                 </Route>
 
-                {/* Verification Pages (No Navbar) */}
+                {/* Verification Pages */}
                 <Route path="/verification/success" element={<VerificationSuccess />} />
                 <Route path="/verification/failed" element={<VerificationFailed />} />
 
-                {/* Authenticated Routes (with Navbar) */}
-                {/* Fix: Remove the "/" from path to avoid conflicts */}
-                <Route element={<AuthenticatedLayout />}>
-                    <Route path="characters" element={<Characters />} />
-                    <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="quests" element={<Quests />} />
-                    <Route path="test" element={<TestPage />} />
+                {/* Development Tools - public but only enabled in development */}
+                {import.meta.env.MODE !== 'production' && (
+                    <Route path="/dev/reset" element={<DevReset />} />
+                )}
+
+                {/* Protected Routes - require authentication */}
+                <Route element={<ProtectedRoutes />}>
+                    <Route path="/characters" element={<Characters />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/quests" element={<Quests />} />
+                    <Route path="/test" element={<TestPage />} />
                 </Route>
 
-                {/* Debug test route - direct access */}
-                <Route path="/debug" element={
-                    <div style={{
-                        padding: '50px',
-                        backgroundColor: 'pink',
-                        minHeight: '70vh',
-                        textAlign: 'center',
-                        border: '5px solid red'
-                    }}>
-                        <h1>Debug Test Page</h1>
-                        <p>If you can see this, direct rendering works!</p>
-                    </div>
-                } />
-
-                {/* Catch-all 404 route */}
-                <Route path="*" element={
-                    <div style={{
-                        padding: '50px',
-                        backgroundColor: 'yellow',
-                        minHeight: '70vh',
-                        textAlign: 'center',
-                        border: '5px dashed red'
-                    }}>
-                        <h1>404 - Page Not Found</h1>
-                        <p>Path: {window.location.pathname}</p>
-                        <button
-                            onClick={() => window.history.back()}
-                            style={{ padding: '10px', margin: '10px' }}
-                        >
-                            Go Back
-                        </button>
-                    </div>
-                } />
+                {/* Fallback route for non-existent pages */}
+                <Route path="*" element={<NotFoundPage />} />
             </Routes>
         </>
     );
 }
 
-// Authenticated Layout for pages requiring login
-// FIXED VERSION - uses Outlet instead of children
-const AuthenticatedLayout = () => {
-    // Check if user is authenticated
-    const isAuthenticated = !!localStorage.getItem('authToken');
+// Protected routes wrapper that checks authentication
+function ProtectedRoutes() {
+    const [isChecking, setIsChecking] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const location = useLocation();
+
+    useEffect(() => {
+        const validateAuthentication = async () => {
+            setIsChecking(true);
+            const valid = await checkAndRefreshToken();
+            setIsAuthenticated(valid);
+            setIsChecking(false);
+        };
+
+        validateAuthentication();
+    }, []);
+
+    // Show loading state while checking
+    if (isChecking) {
+        return (
+            <div className="loading-container">
+                <div className="loading-spinner">Checking authentication...</div>
+            </div>
+        );
+    }
 
     // If not authenticated, redirect to login
     if (!isAuthenticated) {
-        console.log("Not authenticated, redirecting to login");
+        // Store the attempted URL to redirect back after login
+        sessionStorage.setItem('redirectAfterLogin', location.pathname);
         return <Navigate to="/login" replace />;
     }
 
+    // If authenticated, render the outlet (nested routes)
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '100vh',
-            position: 'relative'
-        }}>
+        <>
             <Navbar showLogout={true} />
+            <Outlet />
+        </>
+    );
+}
 
-            <div className="authenticated-content" style={{
-                flex: '1',
-                padding: '20px',
-                backgroundColor: '#f8f9fa'
-            }}>
-                {/* This renders the nested route components */}
-                <Outlet />
-            </div>
-
-            {/* Debug indicator */}
-            <div style={{
-                position: 'fixed',
-                bottom: '10px',
-                right: '10px',
-                background: 'rgba(0,0,0,0.1)',
-                padding: '5px',
-                borderRadius: '3px',
-                fontSize: '10px'
-            }}>
-                Auth Layout Rendered
+// 404 Not Found Page
+function NotFoundPage() {
+    return (
+        <div className="not-found">
+            <h1>404 - Page Not Found</h1>
+            <p>The page you are looking for does not exist.</p>
+            <div className="not-found-buttons">
+                <button onClick={() => window.history.back()}>Go Back</button>
+                <button onClick={() => window.location.href = '/'}>Go to Home</button>
             </div>
         </div>
     );
-};
+}
 
+// Main Router component
 export default function MyRouter() {
     return (
         <BrowserRouter>

@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/userContext';
 import './Characters.css';
 
-console.log("=== CHARACTERS COMPONENT LOADED ===");
-
 export default function Characters() {
     const [characters, setCharacters] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,6 +21,22 @@ export default function Characters() {
         }
     }, []);
 
+    // Extract userId from token - used for storage and API calls
+    const getUserIdFromToken = () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) return null;
+
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            return payload.nameid || payload.sub;
+        } catch (err) {
+            console.error('Error parsing token for userId:', err);
+            return null;
+        }
+    };
+
     // Fetch characters
     useEffect(() => {
         const fetchCharacters = async () => {
@@ -34,6 +48,16 @@ export default function Characters() {
                     return;
                 }
 
+                // Check for token validity before making request
+                const userId = getUserIdFromToken();
+                if (!userId) {
+                    console.error("Invalid token - no user ID found");
+                    setError("Your session has expired. Please login again.");
+                    setLoading(false);
+                    navigate('/login');
+                    return;
+                }
+
                 const response = await axios.get('http://localhost:5233/api/character', {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -42,31 +66,46 @@ export default function Characters() {
 
                 console.log("Characters loaded:", response.data);
 
-                // Process characters to ensure consistent ID field
+                // Normalize character data to ensure consistent ID field
                 const processedCharacters = response.data.map(char => {
-                    // Find the character ID regardless of property name
-                    let id = char.id || char.Id || char.ID ||
-                        char.characterId || char.CharacterId ||
-                        char.characterID;
+                    // Use CharacterId as the primary ID field if it exists
+                    const id = char.CharacterId || char.characterId ||
+                        char.Id || char.id || char.ID;
 
-                    return { ...char, id: id };
+                    // Create a consistent object structure
+                    return {
+                        ...char,
+                        characterId: id, // Use consistent key for all code
+                        id: id // Keep for backward compatibility
+                    };
                 });
 
                 setCharacters(processedCharacters);
-                setLoading(false);
             } catch (err) {
                 console.error('Error fetching characters:', err);
-                setError('Failed to load characters. Please try again later.');
+
+                // Handle specific error cases
+                if (err.response) {
+                    if (err.response.status === 401) {
+                        setError('Your session has expired. Please login again.');
+                        navigate('/login');
+                    } else {
+                        setError(`Error loading characters: ${err.response.data?.message || err.message}`);
+                    }
+                } else {
+                    setError('Failed to load characters. Please try again later.');
+                }
+            } finally {
                 setLoading(false);
             }
         };
 
         fetchCharacters();
-    }, []);
+    }, [navigate]);
 
     const handleSelectCharacter = async (character) => {
         try {
-            console.log("Selecting character:", character);
+            setLoading(true); // Show loading indicator
 
             const token = localStorage.getItem('authToken');
             if (!token) {
@@ -75,23 +114,7 @@ export default function Characters() {
                 return;
             }
 
-            // Get user ID from token for user-specific storage
-            const getUserIdFromToken = () => {
-                try {
-                    // Extract userId from JWT token (simple parsing, not full validation)
-                    const base64Url = token.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(window.atob(base64));
-                    const id = payload.nameid || payload.sub;
-
-                    console.log('Extracted userId from token for character selection:', id);
-                    return id;
-                } catch (err) {
-                    console.error('Error parsing token for userId:', err);
-                    return null;
-                }
-            };
-
+            // Get userId for storage purposes
             const userId = getUserIdFromToken();
             if (!userId) {
                 console.error("Could not extract user ID from token");
@@ -100,69 +123,25 @@ export default function Characters() {
                 return;
             }
 
-            // Find the character ID regardless of property name
-            let characterId = character.id || character.Id || character.ID ||
-                character.characterId || character.CharacterId ||
-                character.characterID;
+            // Get consistent character ID
+            const characterId = character.characterId || character.CharacterId ||
+                character.id || character.Id;
 
             if (!characterId) {
-                console.error("No valid ID found in character object");
+                console.error("No valid ID found in character object:", character);
                 setError("Character has no valid ID. Please try again.");
                 return;
             }
 
-            console.log("Using character ID:", characterId);
+            console.log(`Selecting character: ${character.name} (ID: ${characterId})`);
 
-            // Clear existing storage first - both user-specific and legacy keys
+            // Clear existing character data to prevent conflicts
             localStorage.removeItem('selectedCharacter');
-            if (userId) {
-                localStorage.removeItem(`selectedCharacter_${userId}`);
-            }
+            localStorage.removeItem(`selectedCharacter_${userId}`);
 
-            // Create a normalized character object
-            const characterToSave = {
-                ...character,
-                id: characterId,
-                characterId: characterId
-            };
-
-            // Save to user-specific localStorage
-            if (userId) {
-                const userCharacterKey = `selectedCharacter_${userId}`;
-                localStorage.setItem(userCharacterKey, JSON.stringify(characterToSave));
-                console.log(`Saved character to user-specific storage: ${userCharacterKey}`);
-            }
-
-            // Also save to legacy key for backward compatibility
-            localStorage.setItem('selectedCharacter', JSON.stringify(characterToSave));
-
-            // Update context (which may also handle user-specific storage)
-            setSelectedCharacter(characterToSave);
-
-            console.log("Character selection complete:", {
-                character: characterToSave,
-                userId: userId
-            });
-
-            // Debug check all stored characters
-            console.log("=== CHECKING ALL CHARACTER STORAGE AFTER SELECTION ===");
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.startsWith('selectedCharacter')) {
-                    try {
-                        const value = localStorage.getItem(key);
-                        const parsedChar = JSON.parse(value);
-                        console.log(`${key}:`, parsedChar.name, `(ID: ${parsedChar.characterId || parsedChar.id})`);
-                    } catch (err) {
-                        console.log(`${key}: [parse error - ${err.message}]`);
-                    }
-                }
-            }
-            console.log("====================================");
-
-            // API call with correct ID
             try {
-                await axios.post(
+                // Call API to select character - use uppercase CharacterId for C# backend
+                const response = await axios.post(
                     'http://localhost:5233/api/character/select-character',
                     { CharacterId: characterId },
                     {
@@ -172,33 +151,100 @@ export default function Characters() {
                         }
                     }
                 );
-                console.log("Server updated with character selection");
+
+                console.log("Character selection API response:", response.data);
+
+                // Create normalized character object with backend data
+                let selectedCharacterData;
+
+                // Use backend response if available (provides latest progression data)
+                if (response.data && response.data.character) {
+                    selectedCharacterData = {
+                        ...response.data.character,
+                        characterId: response.data.character.CharacterId ||
+                            response.data.character.characterId ||
+                            characterId
+                    };
+                } else {
+                    // Fallback to normalized local data
+                    selectedCharacterData = {
+                        ...character,
+                        characterId: characterId
+                    };
+                }
+
+                // Update context state
+                setSelectedCharacter(selectedCharacterData);
+
+                // Store in localStorage with user-specific key for better security 
+                localStorage.setItem(
+                    `selectedCharacter_${userId}`,
+                    JSON.stringify(selectedCharacterData)
+                );
+
+                // Also store in generic key for backward compatibility
+                localStorage.setItem(
+                    'selectedCharacter',
+                    JSON.stringify(selectedCharacterData)
+                );
+
+                console.log("Character selection complete:", selectedCharacterData);
+                navigate('/dashboard');
+
             } catch (apiError) {
-                console.error("API error during character selection:", apiError);
-                // Try alternative payload format if needed
-                if (apiError.response && apiError.response.status === 400) {
-                    try {
-                        await axios.post(
-                            'http://localhost:5233/api/character/select-character',
-                            { characterId: characterId },
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${token}`,
-                                    'Content-Type': 'application/json'
+                console.error("Error in character selection API call:", apiError);
+
+                if (apiError.response) {
+                    const statusCode = apiError.response.status;
+                    const errorMessage = apiError.response.data?.message || apiError.message;
+
+                    if (statusCode === 400) {
+                        // Try again with lowercase characterId
+                        try {
+                            console.log("Retrying with lowercase characterId");
+                            await axios.post( // Remove the variable declaration
+                                'http://localhost:5233/api/character/select-character',
+                                { characterId: characterId },
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                        'Content-Type': 'application/json'
+                                    }
                                 }
-                            }
-                        );
-                    } catch (altError) {
-                        console.error("Alternative format also failed:", altError.message);
+                            );
+
+                            // If successful on retry, still use the character
+                            const retryCharData = {
+                                ...character,
+                                characterId: characterId
+                            };
+
+                            setSelectedCharacter(retryCharData);
+                            localStorage.setItem(`selectedCharacter_${userId}`, JSON.stringify(retryCharData));
+                            localStorage.setItem('selectedCharacter', JSON.stringify(retryCharData));
+
+                            console.log("Character selection successful on retry");
+                            navigate('/dashboard');
+                            return;
+                        } catch (retryError) {
+                            console.error("Retry also failed:", retryError);
+                            setError(`Failed to select character: ${errorMessage}`);
+                        }
+                    } else if (statusCode === 401 || statusCode === 403) {
+                        setError("Your session has expired. Please login again.");
+                        navigate('/login');
+                    } else {
+                        setError(`Error selecting character: ${errorMessage}`);
                     }
+                } else {
+                    setError("Network error. Please check your connection and try again.");
                 }
             }
-
-            // Navigate to dashboard
-            navigate('/dashboard');
         } catch (error) {
-            console.error("Error selecting character:", error);
-            setError("Failed to select character. Please try again.");
+            console.error("Unexpected error in character selection:", error);
+            setError("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -246,10 +292,19 @@ export default function Characters() {
             ) : (
                 <div className="character-list">
                     {characters.map(character => (
-                        <div key={character.id || Math.random()} className="character-card">
+                        <div
+                            key={character.characterId || character.id || Math.random()}
+                            className="character-card"
+                        >
                             <h2>{character.name}</h2>
                             <p>Class: {character.class || character.className}</p>
-                            <p>Level: {character.level}</p>
+                            <p>Level: {character.level || 1}</p>
+                            {character.experience !== undefined && (
+                                <p>Experience: {character.experience}</p>
+                            )}
+                            {character.gold !== undefined && (
+                                <p>Gold: {character.gold}</p>
+                            )}
                             <button
                                 onClick={() => handleSelectCharacter(character)}
                                 className="select-button"
@@ -262,11 +317,17 @@ export default function Characters() {
             )}
 
             <div className="character-actions">
-                <button onClick={() => navigate('/dashboard')} className="dashboard-button">
-                    Go to Dashboard
+                <button
+                    onClick={() => navigate('/create-character')}
+                    className="create-button"
+                >
+                    Create New Character
                 </button>
-                <button onClick={() => navigate('/login')} className="back-button">
-                    Back to Login
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="dashboard-button"
+                >
+                    Go to Dashboard
                 </button>
             </div>
         </div>
