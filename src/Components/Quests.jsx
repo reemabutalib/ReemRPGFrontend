@@ -1,30 +1,22 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/userContext";
 import "./Quests.css";
-import { checkAndRefreshToken } from "./Utils/AuthUtils.jsx";
 
-const QuestCard = ({ quest, onDoQuest, isDisabled, characterLevel }) => {
-    const isLevelTooLow = characterLevel < quest.requiredLevel;
-
+const QuestCard = ({ quest, onDoQuest, isDisabled }) => {
     return (
-        <div className={`quest-card ${isLevelTooLow ? 'disabled' : ''}`}>
+        <div className="quest-card">
             <h2>{quest.title}</h2>
             <p>{quest.description}</p>
             <div className="quest-rewards">
                 <p><span>Experience:</span> {quest.experienceReward}</p>
                 <p><span>Gold:</span> {quest.goldReward}</p>
-                {quest.requiredLevel > 0 && (
-                    <p className="level-requirement">Required Level: {quest.requiredLevel}</p>
-                )}
             </div>
             <button
                 onClick={() => onDoQuest(quest)}
-                disabled={isDisabled || isLevelTooLow}
-                className={isLevelTooLow ? 'disabled-button' : ''}
+                disabled={isDisabled}
             >
-                {isLevelTooLow ? `Requires Level ${quest.requiredLevel}` : 'Attempt Quest'}
+                Attempt Quest
             </button>
         </div>
     );
@@ -32,171 +24,99 @@ const QuestCard = ({ quest, onDoQuest, isDisabled, characterLevel }) => {
 
 export default function Quests() {
     const navigate = useNavigate();
-    const { selectedCharacter, setSelectedCharacter, userId, debugStoredCharacters } = useUser();
+    const [character, setCharacter] = useState(null);
     const [quests, setQuests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [processingQuest, setProcessingQuest] = useState(false);
     const [result, setResult] = useState(null);
 
-    // Get character from context or localStorage - now with user-specific storage
-    const getCharacter = () => {
-        // First try from context - this is already user-specific
-        if (selectedCharacter) return selectedCharacter;
-
-        try {
-            // If no character in context, try from user-specific localStorage
-            if (userId) {
-                const userCharacterKey = `selectedCharacter_${userId}`;
-                const storedCharacter = localStorage.getItem(userCharacterKey);
-                if (storedCharacter) {
-                    return JSON.parse(storedCharacter);
-                }
-            }
-
-            // Fall back to the old non-user-specific key (for backward compatibility)
-            const storedCharacter = localStorage.getItem('selectedCharacter');
-            return storedCharacter ? JSON.parse(storedCharacter) : null;
-        } catch (e) {
-            console.error("Error parsing character from localStorage", e);
-            return null;
-        }
-    };
-
-    const character = getCharacter();
-
-    // If no character, redirect to select one
+    // Load character and quests
     useEffect(() => {
-        if (!character) {
-            navigate('/characters');
-        }
-    }, [character, navigate]);
-
-    // Log debug info on component mount
-    useEffect(() => {
-        console.log("Quest component - Current userId:", userId);
-        console.log("Quest component - Current character:", character);
-
-        // Use the debug function from context if available
-        if (debugStoredCharacters) {
-            debugStoredCharacters();
-        }
-    }, [userId, character, debugStoredCharacters]);
-
-    // Fetch quests
-    useEffect(() => {
-        const fetchQuests = async () => {
-            // First check if token is valid
-            const isTokenValid = await checkAndRefreshToken();
-
-            if (!isTokenValid) {
-                console.error("Invalid or missing token");
-                setError("Authentication required");
-                setLoading(false);
-                navigate('/login');
-                return;
-            }
-
+        const fetchData = async () => {
             try {
+                setLoading(true);
                 const token = localStorage.getItem('authToken');
-                console.log("Fetching quests with token:", token.substring(0, 15) + "...");
 
-                const response = await axios.get('http://localhost:5233/api/quest', {
+                if (!token) {
+                    console.log("No auth token found, redirecting to login");
+                    navigate('/login');
+                    return;
+                }
+
+                // First, get the user's selected character
+                const characterResponse = await axios.get('http://localhost:5233/api/character/selected', {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
 
-                console.log("Quests loaded:", response.data);
-                setQuests(response.data);
-                setLoading(false);
+                // If no character is selected, redirect to character selection
+                if (!characterResponse.data || !characterResponse.data.characterId) {
+                    console.log("No character found for this user");
+                    navigate('/characters');
+                    return;
+                }
+
+                // Store the character
+                setCharacter(characterResponse.data);
+                console.log("Character loaded:", characterResponse.data.name);
+
+                // Then load quests
+                const questsResponse = await axios.get('http://localhost:5233/api/quest', {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+
+                setQuests(questsResponse.data);
+                console.log("Quests loaded:", questsResponse.data.length);
+
             } catch (err) {
-                console.error("Error fetching quests:", err);
-                setError("Failed to load quests");
-                setLoading(false);
+                console.error("Error loading data:", err);
 
                 // If unauthorized, redirect to login
                 if (err.response?.status === 401) {
                     localStorage.removeItem('authToken');
                     navigate('/login');
+                    return;
                 }
+
+                setError("Failed to load quests or character data");
+            } finally {
+                setLoading(false);
             }
         };
 
-        fetchQuests();
+        fetchData();
     }, [navigate]);
 
-    // Function to handle quest attempts 
+    // Function to handle quest attempts
     const handleQuestAttempt = async (quest) => {
-        if (processingQuest) return;
+        if (processingQuest || !character) return;
 
         setProcessingQuest(true);
         setResult(null);
 
-        // Check if token is valid before attempting quest
-        const isTokenValid = await checkAndRefreshToken();
-
-        if (!isTokenValid) {
-            console.error("Invalid or missing token for quest attempt");
-            setError("Authentication required");
-            setProcessingQuest(false);
-            navigate('/login');
-            return;
-        }
-
         try {
-            // Get a fresh token each time
             const token = localStorage.getItem('authToken');
             if (!token) {
                 console.error("No auth token found for quest attempt");
-                setError("Authentication required");
                 navigate('/login');
                 return;
             }
 
-            console.log("Attempting quest:", quest.title, "ID:", quest.id);
+            console.log("Attempting quest:", quest.title, "with character:", character.name);
 
-            const characterObj = getCharacter();
-            if (!characterObj) {
-                setError("No character selected");
-                return;
-            }
-
-            // Get character ID with fallbacks for different property names
-            let characterId = null;
-
-            if (characterObj.characterId !== undefined) {
-                characterId = characterObj.characterId;
-            } else if (characterObj.id !== undefined) {
-                characterId = characterObj.id;
-            } else if (characterObj.CharacterId !== undefined) {
-                characterId = characterObj.CharacterId;
-            }
-
-            if (!characterId) {
-                console.error("Could not find character ID in:", characterObj);
-                setError("Invalid character data");
-                return;
-            }
-
-            const questId = quest.id || quest.questId || quest.QuestId;
-
-            console.log("Character attempting quest:", {
-                CharacterId: characterId,
-                QuestId: questId
-            });
-
-            // IMPORTANT: Use PascalCase for C# backend
-            const payload = {
-                CharacterId: characterId,
-                QuestId: questId
-            };
-
-            console.log("Sending quest attempt payload:", payload);
+            const questId = quest.questId || quest.id;
+            const characterId = character.characterId;
 
             const response = await axios.post(
                 'http://localhost:5233/api/quest/attempt',
-                payload,
+                {
+                    questId,
+                    characterId
+                },
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -222,19 +142,13 @@ export default function Quests() {
 
                 // If successful, update character
                 if (questResult.success) {
-                    const updatedCharacter = {
-                        ...characterObj,
-                        experience: (characterObj.experience || 0) + questResult.experience,
-                        gold: (characterObj.gold || 0) + questResult.gold
-                    };
-
-                    // Update level if leveled up
-                    if (questResult.levelUp) {
-                        updatedCharacter.level = questResult.newLevel;
-                    }
-
-                    // Use context's setSelectedCharacter which now handles user-specific storage
-                    setSelectedCharacter(updatedCharacter);
+                    // Update local character state with new values
+                    setCharacter(prev => ({
+                        ...prev,
+                        experience: (prev.experience || 0) + questResult.experience,
+                        gold: (prev.gold || 0) + questResult.gold,
+                        level: questResult.levelUp ? questResult.newLevel : prev.level
+                    }));
                 }
             }
         } catch (err) {
@@ -242,35 +156,13 @@ export default function Quests() {
 
             let errorMessage = "Failed to complete quest";
             if (err.response) {
-                console.error("Server response:", err.response.status, err.response.data);
-                errorMessage = err.response.data?.message || err.response.data || `Server error: ${err.response.status}`;
+                errorMessage = err.response.data?.message || "Server error";
 
                 // Handle unauthorized
                 if (err.response.status === 401) {
-                    console.error("Authentication failed. Token may be expired.");
                     localStorage.removeItem('authToken');
                     navigate('/login');
                     return;
-                }
-
-                // Handle "Character not found or doesn't belong to you"
-                if (err.response.status === 400 &&
-                    (typeof err.response.data === 'string' &&
-                        err.response.data.includes("Character not found"))) {
-
-                    console.error("Character ownership issue:", err.response.data);
-                    errorMessage = "This character doesn't belong to your account or wasn't found";
-
-                    // Use user ID-specific key if available
-                    if (userId) {
-                        localStorage.removeItem(`selectedCharacter_${userId}`);
-                    }
-
-                    // Also remove the legacy key for backward compatibility
-                    localStorage.removeItem('selectedCharacter');
-
-                    // Redirect after showing error
-                    setTimeout(() => navigate('/characters'), 2000);
                 }
             }
 
@@ -346,11 +238,10 @@ export default function Quests() {
                 ) : (
                     quests.map(quest => (
                         <QuestCard
-                            key={quest.id}
+                            key={quest.questId || quest.id}
                             quest={quest}
                             onDoQuest={handleQuestAttempt}
                             isDisabled={processingQuest}
-                            characterLevel={character.level || 1}
                         />
                     ))
                 )}
@@ -362,28 +253,6 @@ export default function Quests() {
             >
                 Back to Dashboard
             </button>
-
-            {/* Debug info - only show during development */}
-            <div className="debug-info">
-                <details>
-                    <summary>Debug Info</summary>
-                    <p>User ID: {userId || "Unknown"}</p>
-                    <p>Character ID: {character.characterId || character.id}</p>
-                    <p>Character Storage Key: {userId ? `selectedCharacter_${userId}` : "No user ID available"}</p>
-                    <button
-                        onClick={() => {
-                            if (debugStoredCharacters) {
-                                debugStoredCharacters();
-                                alert("Check console for stored character info");
-                            } else {
-                                alert("Debug function not available");
-                            }
-                        }}
-                    >
-                        Check All Stored Characters
-                    </button>
-                </details>
-            </div>
         </div>
     );
 }

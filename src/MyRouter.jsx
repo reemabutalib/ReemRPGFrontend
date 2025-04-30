@@ -10,7 +10,6 @@ import Navbar from "@/Components/Navbar";
 import Quests from "@/Components/Quests";
 import TestPage from "@/Components/TestPage";
 import { checkAndRefreshToken } from "@/Components/Utils/AuthUtils";
-import DevReset from "@/Components/Utils/DevReset"; // Add this import
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 
@@ -48,11 +47,6 @@ function AppRoutes() {
                 {/* Verification Pages */}
                 <Route path="/verification/success" element={<VerificationSuccess />} />
                 <Route path="/verification/failed" element={<VerificationFailed />} />
-
-                {/* Development Tools - public but only enabled in development */}
-                {import.meta.env.MODE !== 'production' && (
-                    <Route path="/dev/reset" element={<DevReset />} />
-                )}
 
                 {/* Protected Routes - require authentication */}
                 <Route element={<ProtectedRoutes />}>
