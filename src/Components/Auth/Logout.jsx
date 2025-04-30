@@ -73,7 +73,7 @@ export const handleLogout = (navigate, clearUserData = null) => {
     keysToRemove.forEach(key => localStorage.removeItem(key));
 
     // Redirect to the login page
-    navigate("/login");
+    navigate("/");
 };
 
 const Logout = () => {

@@ -210,44 +210,6 @@ export default function Login() {
                     Register
                 </button>
             </div>
-
-            {/* Debug button only in development mode */}
-            {import.meta.env.MODE !== 'production' && (
-                <div style={{ marginTop: '20px', borderTop: '1px solid #ddd', paddingTop: '10px' }}>
-                    <button
-                        onClick={() => {
-                            // Get all localStorage keys related to characters
-                            const characterKeys = [];
-                            for (let i = 0; i < localStorage.length; i++) {
-                                const key = localStorage.key(i);
-                                if (key && key.startsWith('selectedCharacter')) {
-                                    characterKeys.push(key);
-                                }
-                            }
-
-                            // Log detailed information about stored characters
-                            const characterData = {};
-                            characterKeys.forEach(key => {
-                                try {
-                                    const data = JSON.parse(localStorage.getItem(key));
-                                    characterData[key] = {
-                                        name: data.name,
-                                        id: data.characterId,
-                                        class: data.class
-                                    };
-                                } catch (error) {
-                                    characterData[key] = `ERROR PARSING: ${error.message}`;
-                                }
-                            });
-
-                            alert("Debug info logged to console");
-                        }}
-                        style={{ background: '#ffcc00', padding: '5px 10px', fontSize: '12px' }}
-                    >
-                        Debug Auth
-                    </button>
-                </div>
-            )}
         </div>
     );
 }

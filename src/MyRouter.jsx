@@ -29,8 +29,8 @@ function AppRoutes() {
                 </Route>
 
                 {/* Verification Pages */}
-                <Route path="/verification/success" element={<VerificationSuccess />} />
-                <Route path="/verification/failed" element={<VerificationFailed />} />
+                <Route path="/verification-success" element={<VerificationSuccess />} />
+                <Route path="/verification-failed" element={<VerificationFailed />} />
 
                 {/* Protected Routes - require authentication */}
                 <Route element={<ProtectedRoutes />}>

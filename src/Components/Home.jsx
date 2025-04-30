@@ -172,6 +172,12 @@ export default function Home() {
                     >
                         Start Your Journey
                     </button>
+                    <button
+                        className="cta-button secondary"
+                        onClick={() => navigate('/login')}
+                    >
+                        Continue Your Journey
+                    </button>
                 </div>
             </section>
 
