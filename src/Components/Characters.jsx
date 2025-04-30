@@ -9,8 +9,10 @@ export default function Characters() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+    const [deletingCharacter, setDeletingCharacter] = useState(null);
+    const [showConfirmation, setShowConfirmation] = useState(false);
     const navigate = useNavigate();
-    const { setSelectedCharacter } = useUser();
+    const { selectedCharacter, setSelectedCharacter } = useUser();
 
     // Check if user is new (unchanged)
     useEffect(() => {
@@ -32,16 +34,18 @@ export default function Characters() {
                     return;
                 }
 
-                // Using the new UserCharacterController endpoint
+                // Change this section in the fetchCharacters function
                 const response = await axios.get('http://localhost:5233/api/usercharacter', {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
 
-                // Standardize the character objects
+                // Instead of filtering by characterId, we should use userCharacterId
+                // Each user-character combination should have a unique userCharacterId
                 const processedCharacters = response.data.map(char => ({
                     characterId: char.characterId,
+                    userCharacterId: char.userCharacterId || char.id, // This should be unique per user
                     name: char.characterName || char.name,
                     class: char.class_,
                     level: char.level || 1,
@@ -78,7 +82,6 @@ export default function Characters() {
     const handleSelectCharacter = async (character) => {
         try {
             setLoading(true);
-            console.log("Selecting character:", character);
 
             const token = localStorage.getItem('authToken');
             if (!token) {
@@ -87,11 +90,10 @@ export default function Characters() {
             }
 
             const characterId = character.characterId;
-            console.log(`Selecting character ID: ${characterId}`);
 
             try {
                 // Using the new UserCharacterController endpoint
-                const response = await axios.post(
+                await axios.post(
                     'http://localhost:5233/api/usercharacter/select',
                     { characterId: characterId },
                     {
@@ -101,8 +103,6 @@ export default function Characters() {
                         }
                     }
                 );
-
-                console.log("Selection response:", response.data);
 
                 // After successful selection, fetch the selected character details
                 // to ensure we have the most up-to-date data
@@ -114,8 +114,6 @@ export default function Characters() {
                         }
                     }
                 );
-
-                console.log("Selected character details:", selectedResponse.data);
 
                 // Format the character properly and store in context
                 const selectedCharacter = {
@@ -131,8 +129,6 @@ export default function Characters() {
                 setSelectedCharacter(selectedCharacter);
                 navigate('/dashboard');
             } catch (err) {
-                console.error("Character selection failed:", err);
-
                 // Show a more specific error message if possible
                 if (err.response) {
                     const errorMsg = err.response.data?.message || "Selection failed.";
@@ -142,11 +138,73 @@ export default function Characters() {
                 }
             }
         } catch (err) {
-            console.error("Error selecting character:", err);
+            console.error('Error selecting character:', err);
             setError("Could not select character. Please try again.");
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle character deletion - new function
+    const handleDeleteCharacter = async () => {
+        if (!deletingCharacter) return;
+
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            // Use userCharacterId instead of characterId
+            const userCharacterId = deletingCharacter.userCharacterId;
+
+            // Call the delete endpoint with userCharacterId
+            await axios.delete(
+                `http://localhost:5233/api/usercharacter/${userCharacterId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            // If the deleted character was selected, clear the selection
+            if (selectedCharacter && selectedCharacter.userCharacterId === userCharacterId) {
+                setSelectedCharacter(null);
+            }
+
+            // Update the characters list
+            setCharacters(prev => prev.filter(c => c.userCharacterId !== userCharacterId));
+
+            // Hide confirmation dialog
+            setShowConfirmation(false);
+            setDeletingCharacter(null);
+
+        } catch (err) {
+            let errorMessage = "Failed to delete character";
+
+            if (err.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            }
+
+            setError(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Initiate deletion process
+    const confirmDelete = (character) => {
+        setDeletingCharacter(character);
+        setShowConfirmation(true);
+    };
+
+    // Cancel deletion
+    const cancelDelete = () => {
+        setShowConfirmation(false);
+        setDeletingCharacter(null);
     };
 
     // Show loading state if fetching characters
@@ -169,10 +227,10 @@ export default function Characters() {
                 <div className="error-message">
                     <p>{error}</p>
                     <button
-                        onClick={() => navigate('/login')}
+                        onClick={() => setError(null)}
                         className="back-button"
                     >
-                        Back to Login
+                        Try Again
                     </button>
                 </div>
             </div>
@@ -204,22 +262,51 @@ export default function Characters() {
                 </div>
             )}
 
+            {/* Confirmation Dialog - new component */}
+            {showConfirmation && (
+                <div className="confirmation-overlay">
+                    <div className="confirmation-dialog">
+                        <h3>Remove Character?</h3>
+                        <p>
+                            Are you sure you want to remove <strong>{deletingCharacter?.name}</strong>?
+                        </p>
+                        <p className="confirmation-note">
+                            Your character progress will be lost, but you can add this character again later.
+                        </p>
+                        <div className="confirmation-buttons">
+                            <button
+                                onClick={cancelDelete}
+                                className="cancel-button"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteCharacter}
+                                className="delete-button"
+                            >
+                                Remove Character
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Empty state (unchanged) */}
             {characters.length === 0 ? (
                 <div className="no-characters">
                     <p>You don't have any characters yet.</p>
                     <button
-                        onClick={() => navigate('/create-character')}
+                        onClick={() => navigate('/add-character')}
                         className="create-character-btn"
                     >
-                        Create Your First Character
+                        Add Your First Character
                     </button>
                 </div>
             ) : (
                 <div className="character-list">
                     {characters.map(character => (
                         <div
-                            key={character.characterId}
+                            key={character.userCharacterId}  // Use userCharacterId as the key, not characterId
                             className={`character-card ${character.isSelected ? 'selected' : ''}`}
                         >
                             {character.isSelected && <div className="selected-badge">Selected</div>}
@@ -228,14 +315,25 @@ export default function Characters() {
                             <p>Level: {character.level || 1}</p>
                             <p>Experience: {character.experience}</p>
                             <p>Gold: {character.gold}</p>
-                            <button
-                                onClick={() => handleSelectCharacter(character)}
-                                className="select-button"
-                                disabled={loading || character.isSelected}
-                            >
-                                {loading ? 'Selecting...' :
-                                    character.isSelected ? 'Current Character' : 'Select Character'}
-                            </button>
+
+                            <div className="character-buttons">
+                                <button
+                                    onClick={() => handleSelectCharacter(character)}
+                                    className="select-button"
+                                    disabled={loading || character.isSelected}
+                                >
+                                    {loading ? 'Selecting...' :
+                                        character.isSelected ? 'Current Character' : 'Select Character'}
+                                </button>
+
+                                <button
+                                    onClick={() => confirmDelete(character)}
+                                    className="delete-button"
+                                    disabled={loading}
+                                >
+                                    Remove
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -243,11 +341,11 @@ export default function Characters() {
 
             <div className="character-actions">
                 <button
-                    onClick={() => navigate('/create-character')}
+                    onClick={() => navigate('/add-character')}
                     className="create-button"
                     disabled={loading}
                 >
-                    Create New Character
+                    Add Character
                 </button>
                 <button
                     onClick={() => navigate('/dashboard')}

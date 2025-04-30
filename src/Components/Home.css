@@ -5,6 +5,20 @@ body {
     padding: 0;
 }
 
+html {
+    background-color: #000;
+}
+
+/* If there's a parent container or wrapper that might have the navy color */
+#root, .app-container {
+    background-color: #000;
+}
+
+/* Remove any navy background colors that might be present in parent elements */
+.home-container, main, .page-wrapper {
+    background-color: #000;
+}
+
 .home {
     max-width: 1200px;
     margin: 0 auto;

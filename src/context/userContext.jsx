@@ -34,7 +34,7 @@ export const UserProvider = ({ children }) => {
       return payload.nameid || payload.sub ||
         payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null;
     } catch (err) {
-      console.error('Error parsing token:', err);
+      console.error('Error extracting user ID from token:', err);
       return null;
     }
   };
@@ -73,7 +73,20 @@ export const UserProvider = ({ children }) => {
         });
 
         if (Array.isArray(response.data)) {
-          setCharacters(response.data);
+          // Add userCharacterId to each character object
+          const processedCharacters = response.data.map(char => ({
+            characterId: char.characterId,
+            userCharacterId: char.userCharacterId || char.id, // Add userCharacterId
+            name: char.characterName || char.name,
+            class: char.class_ || char.class,
+            level: char.level || 1,
+            experience: char.experience || 0,
+            gold: char.gold || 0,
+            isSelected: char.isSelected || false,
+            imageUrl: char.imageUrl || ''
+          }));
+
+          setCharacters(processedCharacters);
 
           // Load user's selected character from API if available
           try {
@@ -83,11 +96,12 @@ export const UserProvider = ({ children }) => {
             });
 
             if (selectedResponse.data) {
-              // Format the character data from API response
+              // Format the character data from API response - include userCharacterId
               const characterData = {
                 characterId: selectedResponse.data.characterId,
+                userCharacterId: selectedResponse.data.userCharacterId || selectedResponse.data.id, // Add userCharacterId
                 name: selectedResponse.data.name,
-                class: selectedResponse.data.class_,  // Note the underscore in API response
+                class: selectedResponse.data.class_,
                 level: selectedResponse.data.level || 1,
                 experience: selectedResponse.data.experience || 0,
                 gold: selectedResponse.data.gold || 0,
@@ -95,38 +109,15 @@ export const UserProvider = ({ children }) => {
               };
 
               setSelectedCharacterState(characterData);
-            } else if (response.data.length > 0) {
+            } else if (processedCharacters.length > 0) {
               // Fall back to first character if no selection saved
-              // Format the first character from the list response
-              const firstCharacter = response.data[0];
-              const characterData = {
-                characterId: firstCharacter.characterId,
-                name: firstCharacter.characterName || firstCharacter.name,
-                class: firstCharacter.class_ || firstCharacter.class,
-                level: firstCharacter.level || 1,
-                experience: firstCharacter.experience || 0,
-                gold: firstCharacter.gold || 0,
-                imageUrl: firstCharacter.imageUrl || ''
-              };
-
-              setSelectedCharacterState(characterData);
+              setSelectedCharacterState(processedCharacters[0]);
             }
           } catch (err) {
             console.error('Error fetching selected character:', err);
             // If no selected character endpoint or error, use first character
-            if (response.data.length > 0) {
-              const firstCharacter = response.data[0];
-              const characterData = {
-                characterId: firstCharacter.characterId,
-                name: firstCharacter.characterName || firstCharacter.name,
-                class: firstCharacter.class_ || firstCharacter.class,
-                level: firstCharacter.level || 1,
-                experience: firstCharacter.experience || 0,
-                gold: firstCharacter.gold || 0,
-                imageUrl: firstCharacter.imageUrl || ''
-              };
-
-              setSelectedCharacterState(characterData);
+            if (processedCharacters.length > 0) {
+              setSelectedCharacterState(processedCharacters[0]);
             }
           }
         }
@@ -141,10 +132,16 @@ export const UserProvider = ({ children }) => {
     fetchUserData();
   }, [userId]);
 
-  // Handle character selection
+  // Handle character selection with proper guard against infinite loops
   const setSelectedCharacter = async (character) => {
     if (!character) {
       setSelectedCharacterState(null);
+      return;
+    }
+
+    // Add a check to prevent selecting the same character repeatedly
+    if (selectedCharacter && selectedCharacter.userCharacterId === character.userCharacterId) {
+      console.log('Character is already selected, skipping');
       return;
     }
 
@@ -152,18 +149,68 @@ export const UserProvider = ({ children }) => {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      // Updated endpoint: usercharacter/select instead of character/select-character
+      // Get the appropriate ID to use
+      const characterId = character.characterId;
+      const userCharacterId = character.userCharacterId;
+
+      console.log('Selecting character with:', { characterId, userCharacterId });
+
+      // Set loading state to prevent additional calls
+      setLoading(true);
+
+      // Send both IDs to make the backend more flexible
       await axios.post(
         'http://localhost:5233/api/usercharacter/select',
-        { characterId: character.characterId },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          characterId: characterId,
+          userCharacterId: userCharacterId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
+      // Set the selected character first
       setSelectedCharacterState(character);
+
+      // After selection, refresh the character list to update isSelected flags
+      const response = await axios.get('http://localhost:5233/api/usercharacter', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (Array.isArray(response.data)) {
+        const processedCharacters = response.data.map(char => ({
+          characterId: char.characterId,
+          userCharacterId: char.userCharacterId || char.id,
+          name: char.characterName || char.name,
+          class: char.class_ || char.class,
+          level: char.level || 1,
+          experience: char.experience || 0,
+          gold: char.gold || 0,
+          isSelected: char.isSelected || false,
+          imageUrl: char.imageUrl || ''
+        }));
+
+        // Update characters without triggering a loop
+        setCharacters(processedCharacters);
+      }
     } catch (err) {
       console.error('Error selecting character:', err);
-      // Fall back to client-side selection if API fails
-      setSelectedCharacterState(character);
+
+      if (err.response) {
+        console.error('Server responded with:', {
+          status: err.response.status,
+          data: err.response.data
+        });
+      }
+
+      setError('Failed to select character. Please try again.');
+    } finally {
+      // Always make sure to turn off loading state
+      setLoading(false);
     }
   };
 
@@ -175,8 +222,10 @@ export const UserProvider = ({ children }) => {
     setSelectedCharacterState(null);
     setCharacters([]);
     setUserId(null);
+    setError(null);
   };
 
+  // Return the context provider with values
   return (
     <UserContext.Provider
       value={{
@@ -184,6 +233,7 @@ export const UserProvider = ({ children }) => {
         setSelectedCharacter,
         hasSelectedCharacter,
         characters,
+        setCharacters,
         loading,
         error,
         userId,
@@ -194,3 +244,6 @@ export const UserProvider = ({ children }) => {
     </UserContext.Provider>
   );
 };
+
+// Export the provider for use in the app
+export default UserProvider;

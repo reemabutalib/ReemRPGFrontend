@@ -1,3 +1,4 @@
+import { AddCharacter } from "@/Components/AddCharacter";
 import AuthLayout from "@/Components/Auth/AuthLayout";
 import Login from "@/Components/Auth/Login";
 import Register from "@/Components/Auth/Register";
@@ -34,6 +35,7 @@ function AppRoutes() {
                 {/* Protected Routes - require authentication */}
                 <Route element={<ProtectedRoutes />}>
                     <Route path="/characters" element={<Characters />} />
+                    <Route path="/add-character" element={<AddCharacter />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/quests" element={<Quests />} />
                 </Route>
