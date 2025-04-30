@@ -1,9 +1,9 @@
-Reem RPG - Fantasy Adventure Game
+# Reem RPG - Fantasy Adventure Game
 
-Overview
+# Overview
 Reem RPG is an immersive fantasy role-playing game where players create characters, embark on quests, and compete on leaderboards. Built with React for the frontend and ASP.NET Core for the backend, this project delivers a complete gaming experience with user authentication, character management, and adventure gameplay.
 
-Features
+# Features
 
 - User Authentication: Secure login and registration system with email verification
 - Character System: Create and customize characters with different classes
@@ -12,7 +12,7 @@ Features
 - Adventure Mode: Complete quests and earn rewards
 - Responsive Design: Playable on desktop and mobile devices
 
-Technologies
+# Technologies
 
 Frontend
 - React 18
@@ -29,14 +29,14 @@ Backend
 - JWT authentication for secure API access
 - Email service integration for verification
 
-Getting Started
+# Getting Started
 
 Prerequisites
 - Node.js (v16+)
 - .NET SDK 8.0
 - SQL Server/SQLite
 
-Frontend Setup
+## Frontend Setup
 
 1. Clone the repository
 git clone https://github.com/yourusername/ReemRPGFrontend.git
@@ -50,7 +50,7 @@ npm run dev
 
 4. Open your browser and navigate to http://localhost:5173
 
-Backend setup
+## Backend setup
 
 1. Clone the backend repository 
 git clone https://github.com/yourusername/ReemRPG.git
@@ -69,14 +69,14 @@ dotnet run
 
 6. API will be available at http://localhost:5233
 
-Game Mechanics
+# Game Mechanics
 
 Characters: Choose between Warrior, Archer, Mage and more classes
 Leveling: Gain experience points to level up your character
 Gold: Earn gold by completing quests and challenges
 Items: Equip weapons and armor to improve your character's stats
 
-Future Development
+# Future Development
 
 PvP battles between players
 Guilds and team gameplay
@@ -84,7 +84,7 @@ Expanded quest system with story arcs
 Crafting and economy system
 Mobile app version
 
-License
+# License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
