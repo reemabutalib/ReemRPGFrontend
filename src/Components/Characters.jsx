@@ -12,7 +12,7 @@ export default function Characters() {
     const navigate = useNavigate();
     const { setSelectedCharacter } = useUser();
 
-    // Check if user is new
+    // Check if user is new (unchanged)
     useEffect(() => {
         const isNewUser = localStorage.getItem('newUser') === 'true';
         if (isNewUser) {
@@ -21,7 +21,7 @@ export default function Characters() {
         }
     }, []);
 
-    // Fetch characters
+    // Fetch characters - UPDATED to use UserCharacterController
     useEffect(() => {
         const fetchCharacters = async () => {
             try {
@@ -32,7 +32,8 @@ export default function Characters() {
                     return;
                 }
 
-                const response = await axios.get('http://localhost:5233/api/character', {
+                // Using the new UserCharacterController endpoint
+                const response = await axios.get('http://localhost:5233/api/usercharacter', {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -40,11 +41,22 @@ export default function Characters() {
 
                 // Standardize the character objects
                 const processedCharacters = response.data.map(char => ({
-                    ...char,
-                    characterId: char.characterId || char.CharacterId
+                    characterId: char.characterId,
+                    name: char.characterName || char.name,
+                    class: char.class_,
+                    level: char.level || 1,
+                    experience: char.experience || 0,
+                    gold: char.gold || 0,
+                    isSelected: char.isSelected || false
                 }));
 
                 setCharacters(processedCharacters);
+
+                // Check if there's a selected character and pre-select it in the UI
+                const selectedChar = processedCharacters.find(char => char.isSelected);
+                if (selectedChar) {
+                    setSelectedCharacter(selectedChar);
+                }
             } catch (err) {
                 console.error('Error fetching characters:', err);
 
@@ -60,9 +72,9 @@ export default function Characters() {
         };
 
         fetchCharacters();
-    }, [navigate]);
+    }, [navigate, setSelectedCharacter]);
 
-
+    // Updated to use UserCharacterController
     const handleSelectCharacter = async (character) => {
         try {
             setLoading(true);
@@ -74,15 +86,14 @@ export default function Characters() {
                 return;
             }
 
-            // Use a single, simple request format
             const characterId = character.characterId;
             console.log(`Selecting character ID: ${characterId}`);
 
             try {
-                // Send only the necessary data
+                // Using the new UserCharacterController endpoint
                 const response = await axios.post(
-                    'http://localhost:5233/api/character/select-character',
-                    { characterId: characterId }, // Simple, clear payload
+                    'http://localhost:5233/api/usercharacter/select',
+                    { characterId: characterId },
                     {
                         headers: {
                             Authorization: `Bearer ${token}`,
@@ -93,19 +104,42 @@ export default function Characters() {
 
                 console.log("Selection response:", response.data);
 
-                // Store in context
-                setSelectedCharacter(character);
+                // After successful selection, fetch the selected character details
+                // to ensure we have the most up-to-date data
+                const selectedResponse = await axios.get(
+                    'http://localhost:5233/api/usercharacter/selected',
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
 
-                // Navigate to dashboard
+                console.log("Selected character details:", selectedResponse.data);
+
+                // Format the character properly and store in context
+                const selectedCharacter = {
+                    characterId: selectedResponse.data.characterId,
+                    name: selectedResponse.data.name,
+                    class: selectedResponse.data.class_,
+                    level: selectedResponse.data.level,
+                    experience: selectedResponse.data.experience,
+                    gold: selectedResponse.data.gold,
+                    imageUrl: selectedResponse.data.imageUrl
+                };
+
+                setSelectedCharacter(selectedCharacter);
                 navigate('/dashboard');
             } catch (err) {
-                // Log detailed error info for debugging
                 console.error("Character selection failed:", err);
 
-                // For now, bypass the API since it's failing
-                console.warn("API failed - bypassing for development");
-                setSelectedCharacter(character);
-                navigate('/dashboard');
+                // Show a more specific error message if possible
+                if (err.response) {
+                    const errorMsg = err.response.data?.message || "Selection failed.";
+                    setError(`Error: ${errorMsg}`);
+                } else {
+                    setError("Could not select character. Please try again.");
+                }
             }
         } catch (err) {
             console.error("Error selecting character:", err);
@@ -149,6 +183,7 @@ export default function Characters() {
         <div className="characters-container">
             <h1>Your Characters</h1>
 
+            {/* Welcome message (unchanged) */}
             {showWelcomeMessage && (
                 <div className="welcome-message">
                     <h2>Welcome to Reem RPG!</h2>
@@ -162,12 +197,14 @@ export default function Characters() {
                 </div>
             )}
 
+            {/* Loading overlay (unchanged) */}
             {loading && characters.length > 0 && (
                 <div className="overlay-loading">
                     <div className="loading-spinner">Processing...</div>
                 </div>
             )}
 
+            {/* Empty state (unchanged) */}
             {characters.length === 0 ? (
                 <div className="no-characters">
                     <p>You don't have any characters yet.</p>
@@ -183,23 +220,21 @@ export default function Characters() {
                     {characters.map(character => (
                         <div
                             key={character.characterId}
-                            className="character-card"
+                            className={`character-card ${character.isSelected ? 'selected' : ''}`}
                         >
+                            {character.isSelected && <div className="selected-badge">Selected</div>}
                             <h2>{character.name}</h2>
                             <p>Class: {character.class}</p>
                             <p>Level: {character.level || 1}</p>
-                            {character.experience !== undefined && (
-                                <p>Experience: {character.experience}</p>
-                            )}
-                            {character.gold !== undefined && (
-                                <p>Gold: {character.gold}</p>
-                            )}
+                            <p>Experience: {character.experience}</p>
+                            <p>Gold: {character.gold}</p>
                             <button
                                 onClick={() => handleSelectCharacter(character)}
                                 className="select-button"
-                                disabled={loading}
+                                disabled={loading || character.isSelected}
                             >
-                                {loading ? 'Selecting...' : 'Select Character'}
+                                {loading ? 'Selecting...' :
+                                    character.isSelected ? 'Current Character' : 'Select Character'}
                             </button>
                         </div>
                     ))}

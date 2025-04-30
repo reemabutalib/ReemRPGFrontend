@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../context/userContext'; // Make sure to import this
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -8,62 +9,70 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const { selectedCharacter, setSelectedCharacter } = useUser();
 
     // On component mount, fetch the user's character from API
     useEffect(() => {
         const fetchUserCharacter = async () => {
             try {
-                setLoading(true);
-                setError(null); // Reset any previous errors
+                // If we already have a character in context, use it
+                if (selectedCharacter && selectedCharacter.characterId) {
+                    setCharacter(selectedCharacter);
+                    setLoading(false);
+                    return;
+                }
 
                 const token = localStorage.getItem('authToken');
-
                 if (!token) {
-                    console.log("No auth token found, redirecting to login");
                     navigate('/login');
                     return;
                 }
 
-                // Get the user's selected character directly from the API
-                const response = await axios.get('http://localhost:5233/api/character/selected', {
+                // Get the user's selected character from the API
+                const response = await axios.get('http://localhost:5233/api/usercharacter/selected', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
-                // If the user has a selected character, use it
+                // Process character data
                 if (response.data && response.data.characterId) {
-                    console.log("Found user's character:", response.data.name);
-                    setCharacter(response.data);
+                    const characterData = {
+                        characterId: response.data.characterId,
+                        name: response.data.name,
+                        class: response.data.class_,  // Note the underscore in API response
+                        level: response.data.level,
+                        experience: response.data.experience,
+                        gold: response.data.gold,
+                        imageUrl: response.data.imageUrl
+                    };
+
+                    setCharacter(characterData);
+                    setSelectedCharacter(characterData);
                 } else {
                     // User doesn't have a character, redirect to selection
-                    console.log("No character found for this user");
                     navigate('/characters');
                 }
             } catch (err) {
-                console.error("Error fetching character:", err);
-
-                // If 401 unauthorized, token is invalid
-                if (err.response && err.response.status === 401) {
-                    console.log("Authentication failed, redirecting to login");
+                // Handle 401 Unauthorized
+                if (err.response?.status === 401) {
                     navigate('/login');
                     return;
                 }
 
-                // Only show error for network issues or unexpected errors
-                // Don't show errors for expected situations like missing character
-                if (!err.response || (err.response.status !== 404 && err.response.status !== 400)) {
-                    setError("Unable to load your character. Please try again later.");
-                } else {
-                    // For 404 or bad request, just redirect to character selection
-                    console.log("Error or no character found, redirecting to character selection");
+                // Handle 404 Not Found - no character selected
+                if (err.response?.status === 404) {
                     navigate('/characters');
+                    return;
                 }
+
+                // For other errors
+                setError("Unable to load your character. Please try again later.");
             } finally {
                 setLoading(false);
             }
         };
 
         fetchUserCharacter();
-    }, [navigate]);
+    }, [navigate, selectedCharacter, setSelectedCharacter]);
 
     if (loading) {
         return (
@@ -79,16 +88,10 @@ export default function Dashboard() {
                 <h2>Something went wrong</h2>
                 <p>{error}</p>
                 <div className="error-actions">
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="primary-button"
-                    >
+                    <button onClick={() => window.location.reload()} className="primary-button">
                         Try Again
                     </button>
-                    <button
-                        onClick={() => navigate('/characters')}
-                        className="secondary-button"
-                    >
+                    <button onClick={() => navigate('/characters')} className="secondary-button">
                         Select Character
                     </button>
                 </div>
@@ -105,7 +108,6 @@ export default function Dashboard() {
         <div className="dashboard-container">
             <h1>{character.name}'s Dashboard</h1>
 
-            {/* Rest of your dashboard remains the same */}
             <div className="character-banner">
                 <div className="character-avatar">
                     {character.imageUrl ? (
@@ -124,18 +126,14 @@ export default function Dashboard() {
                         <span className="stat-label">Level:</span>
                         <span className="stat-value">{character.level || 1}</span>
                     </div>
-                    {character.experience !== undefined && (
-                        <div className="stat">
-                            <span className="stat-label">Experience:</span>
-                            <span className="stat-value">{character.experience}</span>
-                        </div>
-                    )}
-                    {character.gold !== undefined && (
-                        <div className="stat">
-                            <span className="stat-label">Gold:</span>
-                            <span className="stat-value">{character.gold}</span>
-                        </div>
-                    )}
+                    <div className="stat">
+                        <span className="stat-label">Experience:</span>
+                        <span className="stat-value">{character.experience}</span>
+                    </div>
+                    <div className="stat">
+                        <span className="stat-label">Gold:</span>
+                        <span className="stat-value">{character.gold}</span>
+                    </div>
                 </div>
             </div>
 
@@ -143,10 +141,7 @@ export default function Dashboard() {
                 <div className="card">
                     <h3>Quests</h3>
                     <p>Embark on adventures to gain experience and gold.</p>
-                    <button
-                        onClick={() => navigate('/quests')}
-                        className="card-action"
-                    >
+                    <button onClick={() => navigate('/quests')} className="card-action">
                         View Quests
                     </button>
                 </div>
@@ -154,10 +149,7 @@ export default function Dashboard() {
                 <div className="card">
                     <h3>Character</h3>
                     <p>View or change your character.</p>
-                    <button
-                        onClick={() => navigate('/characters')}
-                        className="card-action"
-                    >
+                    <button onClick={() => navigate('/characters')} className="card-action">
                         Change Character
                     </button>
                 </div>

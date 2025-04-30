@@ -8,31 +8,14 @@ import Dashboard from "@/Components/Dashboard";
 import Home from "@/Components/Home";
 import Navbar from "@/Components/Navbar";
 import Quests from "@/Components/Quests";
-import TestPage from "@/Components/TestPage";
 import { checkAndRefreshToken } from "@/Components/Utils/AuthUtils";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-
-
-// Create a route logger component
-function RouteLogger() {
-    const location = useLocation();
-
-    useEffect(() => {
-        // Log route changes
-        console.log('====== ROUTE CHANGED ======');
-        console.log('Current route:', location.pathname);
-        console.log('Auth token exists:', !!localStorage.getItem('authToken'));
-    }, [location]);
-
-    return null; // This component doesn't render anything
-}
 
 // App Routes component
 function AppRoutes() {
     return (
         <>
-            <RouteLogger />
             <Routes>
                 {/* Home Page - Public, doesn't require auth */}
                 <Route path="/" element={<Home />} />
@@ -53,7 +36,6 @@ function AppRoutes() {
                     <Route path="/characters" element={<Characters />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/quests" element={<Quests />} />
-                    <Route path="/test" element={<TestPage />} />
                 </Route>
 
                 {/* Fallback route for non-existent pages */}

@@ -12,3 +12,70 @@
 .logout-button:hover {
     background-color: #d32f2f; 
 }
+
+.logout-confirm-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.logout-confirm {
+    background-color: #1e1e2f;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.logout-confirm p {
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+}
+
+.small-text {
+    font-size: 0.9rem !important;
+    color: #aaa;
+    margin-top: -10px;
+}
+
+.logout-buttons {
+    display: flex;
+    justify-content: space-around;
+}
+
+.cancel-button {
+    background-color: transparent;
+    border: 1px solid #888;
+    color: #ddd;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cancel-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.confirm-button {
+    background-color: #e74c3c;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.confirm-button:hover {
+    background-color: #c0392b;
+}

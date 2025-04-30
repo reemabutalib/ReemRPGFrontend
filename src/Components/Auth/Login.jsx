@@ -6,12 +6,6 @@ import '../Auth/Verification.css';
 import { storeCredentialsForRefresh } from '../Utils/AuthUtils';
 import './Login.css';
 
-console.log("=== LOGIN COMPONENT LOADED ===");
-console.log("localStorage contents at Login load:", {
-    authToken: localStorage.getItem('authToken') ? "EXISTS" : "NOT FOUND",
-    selectedCharacter: localStorage.getItem('selectedCharacter')
-});
-
 export default function Login() {
     const navigate = useNavigate();
     const { setSelectedCharacter } = useUser();
@@ -44,10 +38,7 @@ export default function Login() {
                 password: formData.password
             };
 
-            console.log("Sending verification resend request with payload:",
-                { email: payload.email, password: "********" });
-
-            const response = await axios.post(
+            await axios.post(
                 'http://localhost:5233/api/account/resend-verification',
                 payload,
                 {
@@ -55,15 +46,13 @@ export default function Login() {
                 }
             );
 
-            console.log("Verification email resent successfully:", response.data);
             setResendSuccess(true);
         } catch (error) {
-            console.error('Error resending verification email:', error);
             if (error.response) {
-                console.log("Error response data:", error.response.data);
-                console.log("Error response status:", error.response.status);
+                setError(error.response.data?.message || 'Failed to resend verification email. Please try again.');
+            } else {
+                setError('Failed to resend verification email. Please try again.');
             }
-            setError('Failed to resend verification email. Please try again.');
         } finally {
             setResendLoading(false);
         }
@@ -75,15 +64,8 @@ export default function Login() {
         setRequiresVerification(false);
         setIsLoading(true);
 
-        // Simple localStorage test
-        localStorage.setItem('testValue', 'hello');
-        const testResult = localStorage.getItem('testValue');
-        console.log("Simple localStorage test:", testResult === 'hello' ? "WORKING" : "FAILED");
-
         try {
-            console.log("Making login request...");
             const response = await axios.post('http://localhost:5233/api/account/login', formData);
-            console.log("Login successful:", response.status);
 
             const token = response.data.token;
             if (!token) {
@@ -92,14 +74,11 @@ export default function Login() {
 
             // Store token
             localStorage.setItem('authToken', token);
-            console.log("Token stored in localStorage");
 
             // Store credentials for token refresh
             storeCredentialsForRefresh(formData.email, formData.password);
-            console.log("Credentials stored for auto-refresh");
 
-            // IMPORTANT: Clear any existing character data for all users
-            // Get all localStorage keys
+            // Clear any existing character data
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
@@ -107,108 +86,49 @@ export default function Login() {
                     keysToRemove.push(key);
                 }
             }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
 
-            // Remove all character keys
-            keysToRemove.forEach(key => {
-                localStorage.removeItem(key);
-                console.log(`Removed ${key} from localStorage`);
-            });
-
-            console.log("Cleared previous character selections");
-
-            // Extract user ID from token for user-specific storage
-            let userId = null;
             try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const payload = JSON.parse(window.atob(base64));
-                userId = payload.nameid ||
-                    payload.sub ||
-                    payload.userId ||
-                    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-
-                console.log("Extracted userId from token:", userId);
-            } catch (err) {
-                console.error("Error extracting user ID from token:", err);
-            }
-
-            // Check if user has characters first
-            try {
-                console.log("Checking if user has characters...");
-                const characterResponse = await axios.get('http://localhost:5233/api/character', {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                // Try to get the selected character
+                const selectedCharResponse = await axios.get(
+                    'http://localhost:5233/api/usercharacter/selected',
+                    {
+                        headers: { Authorization: `Bearer ${token}` }
                     }
-                });
+                );
 
-                // If user has no characters, go to character creation
-                if (!characterResponse.data ||
-                    (Array.isArray(characterResponse.data) && characterResponse.data.length === 0)) {
-                    console.log("No characters found for this user");
-                    navigate('/characters');
+                if (selectedCharResponse.data && selectedCharResponse.data.characterId) {
+                    // Format the character data
+                    const characterData = {
+                        characterId: selectedCharResponse.data.characterId,
+                        name: selectedCharResponse.data.name,
+                        class: selectedCharResponse.data.class_,
+                        level: selectedCharResponse.data.level,
+                        experience: selectedCharResponse.data.experience,
+                        gold: selectedCharResponse.data.gold,
+                        imageUrl: selectedCharResponse.data.imageUrl || ''
+                    };
+
+                    // Set in context
+                    setSelectedCharacter(characterData);
+
+                    // Navigate to dashboard
+                    navigate('/dashboard', { replace: true });
                     return;
                 }
-
-                console.log("User has characters:", characterResponse.data);
-
-                // User has characters - select the first one
-                if (Array.isArray(characterResponse.data) && characterResponse.data.length > 0) {
-                    const firstCharacter = characterResponse.data[0];
-                    console.log("Auto-selecting first character:", firstCharacter);
-
-                    try {
-                        // Validate character ownership first
-                        const response = await axios.get(
-                            `http://localhost:5233/api/character/${firstCharacter.characterId}/validate`,
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${token}`
-                                }
-                            }
-                        );
-
-                        if (response.data?.isOwner !== true) {
-                            console.error("Character does not belong to current user");
-                            navigate('/characters');
-                            return;
-                        }
-
-                        console.log("Character ownership validated");
-
-                        // User-specific storage key if userId is available
-                        if (userId) {
-                            const userCharacterKey = `selectedCharacter_${userId}`;
-                            localStorage.setItem(userCharacterKey, JSON.stringify(firstCharacter));
-                            console.log(`Stored character in user-specific storage (${userCharacterKey})`);
-                        }
-
-                        // Also save to regular localStorage for backwards compatibility
-                        localStorage.setItem('selectedCharacter', JSON.stringify(firstCharacter));
-
-                        // Update context
-                        const success = await setSelectedCharacter(firstCharacter);
-
-                        if (!success) {
-                            console.error("Error setting selected character in context");
-                            navigate('/characters');
-                            return;
-                        }
-
-                        // Navigate to dashboard
-                        console.log("Navigating to dashboard with character:", firstCharacter.name);
-                        navigate('/dashboard', { replace: true });
-                    } catch (validationError) {
-                        console.error("Error validating character:", validationError);
-                        navigate('/characters');
-                    }
-                }
-            } catch (characterError) {
-                console.error("Error checking characters:", characterError);
+            } catch (error) {
+                error.response?.status === 404 ? console.log('No selected character found') : console.error('Error fetching selected character:', error);
+                // No selected character found or other error
+                // Proceed to character selection
                 navigate('/characters');
+                return;
             }
-        } catch (error) {
-            console.error('Login error:', error);
 
+            // If we get here, no selected character was found
+            // Direct user to character selection page
+            navigate('/characters');
+
+        } catch (error) {
             // Check for verification error
             if (error.response?.data?.requiresVerification === true ||
                 error.response?.data?.message?.toLowerCase().includes('verify')) {
@@ -219,7 +139,7 @@ export default function Login() {
             } else {
                 setError('Could not connect to the server. Please try again later.');
             }
-
+        } finally {
             setIsLoading(false);
         }
     };
@@ -291,7 +211,7 @@ export default function Login() {
                 </button>
             </div>
 
-            {/* Add this debug button during development, remove for production */}
+            {/* Debug button only in development mode */}
             {import.meta.env.MODE !== 'production' && (
                 <div style={{ marginTop: '20px', borderTop: '1px solid #ddd', paddingTop: '10px' }}>
                     <button
@@ -320,14 +240,7 @@ export default function Login() {
                                 }
                             });
 
-                            console.log("Debug: Current localStorage", {
-                                authToken: localStorage.getItem('authToken') ? "EXISTS" : "NONE",
-                                userEmail: localStorage.getItem('userEmail'),
-                                tempAuthPassword: localStorage.getItem('tempAuthPassword') ? "EXISTS" : "NONE",
-                                characterKeys: characterKeys,
-                                characterData: characterData
-                            });
-                            alert("Check console for debug info");
+                            alert("Debug info logged to console");
                         }}
                         style={{ background: '#ffcc00', padding: '5px 10px', fontSize: '12px' }}
                     >

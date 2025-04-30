@@ -8,7 +8,8 @@ const UserContext = createContext({
   characters: [],
   loading: true,
   error: null,
-  userId: null
+  userId: null,
+  clearUserData: () => { }
 });
 
 export const useUser = () => useContext(UserContext);
@@ -45,11 +46,9 @@ export const UserProvider = ({ children }) => {
 
       if (id) {
         setUserId(id);
-        console.log('User authenticated:', id);
       } else {
         setUserId(null);
         setSelectedCharacterState(null);
-        console.log('No authenticated user');
       }
     };
 
@@ -67,38 +66,72 @@ export const UserProvider = ({ children }) => {
       setLoading(true);
       try {
         const token = localStorage.getItem('authToken');
-        const response = await axios.get('http://localhost:5233/api/character', {
+
+        // Updated endpoint: usercharacter instead of character
+        const response = await axios.get('http://localhost:5233/api/usercharacter', {
           headers: { Authorization: `Bearer ${token}` }
         });
 
         if (Array.isArray(response.data)) {
-          console.log('Characters loaded:', response.data.length);
           setCharacters(response.data);
 
           // Load user's selected character from API if available
           try {
-            const selectedResponse = await axios.get('http://localhost:5233/api/character/selected', {
+            // Updated endpoint: usercharacter/selected instead of character/selected
+            const selectedResponse = await axios.get('http://localhost:5233/api/usercharacter/selected', {
               headers: { Authorization: `Bearer ${token}` }
             });
 
             if (selectedResponse.data) {
-              console.log('Selected character loaded:', selectedResponse.data);
-              setSelectedCharacterState(selectedResponse.data);
+              // Format the character data from API response
+              const characterData = {
+                characterId: selectedResponse.data.characterId,
+                name: selectedResponse.data.name,
+                class: selectedResponse.data.class_,  // Note the underscore in API response
+                level: selectedResponse.data.level || 1,
+                experience: selectedResponse.data.experience || 0,
+                gold: selectedResponse.data.gold || 0,
+                imageUrl: selectedResponse.data.imageUrl || ''
+              };
+
+              setSelectedCharacterState(characterData);
             } else if (response.data.length > 0) {
               // Fall back to first character if no selection saved
-              console.log('No selected character found, using first character');
-              setSelectedCharacterState(response.data[0]);
+              // Format the first character from the list response
+              const firstCharacter = response.data[0];
+              const characterData = {
+                characterId: firstCharacter.characterId,
+                name: firstCharacter.characterName || firstCharacter.name,
+                class: firstCharacter.class_ || firstCharacter.class,
+                level: firstCharacter.level || 1,
+                experience: firstCharacter.experience || 0,
+                gold: firstCharacter.gold || 0,
+                imageUrl: firstCharacter.imageUrl || ''
+              };
+
+              setSelectedCharacterState(characterData);
             }
           } catch (err) {
-            console.error('Error loading selected character:', err);
+            console.error('Error fetching selected character:', err);
             // If no selected character endpoint or error, use first character
             if (response.data.length > 0) {
-              setSelectedCharacterState(response.data[0]);
+              const firstCharacter = response.data[0];
+              const characterData = {
+                characterId: firstCharacter.characterId,
+                name: firstCharacter.characterName || firstCharacter.name,
+                class: firstCharacter.class_ || firstCharacter.class,
+                level: firstCharacter.level || 1,
+                experience: firstCharacter.experience || 0,
+                gold: firstCharacter.gold || 0,
+                imageUrl: firstCharacter.imageUrl || ''
+              };
+
+              setSelectedCharacterState(characterData);
             }
           }
         }
       } catch (err) {
-        console.error('Error loading characters:', err);
+        console.error('Error fetching characters:', err);
         setError('Failed to load characters. Please try again.');
       } finally {
         setLoading(false);
@@ -119,14 +152,13 @@ export const UserProvider = ({ children }) => {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      // Send character selection to backend
+      // Updated endpoint: usercharacter/select instead of character/select-character
       await axios.post(
-        'http://localhost:5233/api/character/select-character',
+        'http://localhost:5233/api/usercharacter/select',
         { characterId: character.characterId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      console.log('Character selected:', character.name);
       setSelectedCharacterState(character);
     } catch (err) {
       console.error('Error selecting character:', err);

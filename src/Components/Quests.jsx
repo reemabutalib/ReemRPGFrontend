@@ -1,11 +1,12 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/userContext"; // Make sure to import this
 import "./Quests.css";
 
-const QuestCard = ({ quest, onDoQuest, isDisabled }) => {
+const QuestCard = ({ quest, onDoQuest, isDisabled, isCompleted }) => {
     return (
-        <div className="quest-card">
+        <div className={`quest-card ${isCompleted ? 'completed' : ''}`}>
             <h2>{quest.title}</h2>
             <p>{quest.description}</p>
             <div className="quest-rewards">
@@ -14,9 +15,9 @@ const QuestCard = ({ quest, onDoQuest, isDisabled }) => {
             </div>
             <button
                 onClick={() => onDoQuest(quest)}
-                disabled={isDisabled}
+                disabled={isDisabled || isCompleted}
             >
-                Attempt Quest
+                {isCompleted ? 'Already Completed' : 'Attempt Quest'}
             </button>
         </div>
     );
@@ -24,12 +25,14 @@ const QuestCard = ({ quest, onDoQuest, isDisabled }) => {
 
 export default function Quests() {
     const navigate = useNavigate();
+    const { selectedCharacter, setSelectedCharacter } = useUser();
     const [character, setCharacter] = useState(null);
     const [quests, setQuests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [processingQuest, setProcessingQuest] = useState(false);
     const [result, setResult] = useState(null);
+    const [completedQuests, setCompletedQuests] = useState([]);
 
     // Load character and quests
     useEffect(() => {
@@ -39,43 +42,65 @@ export default function Quests() {
                 const token = localStorage.getItem('authToken');
 
                 if (!token) {
-                    console.log("No auth token found, redirecting to login");
                     navigate('/login');
                     return;
                 }
 
-                // First, get the user's selected character
-                const characterResponse = await axios.get('http://localhost:5233/api/character/selected', {
-                    headers: {
-                        Authorization: `Bearer ${token}`
+                // First try to use the character from context
+                let characterData;
+                if (selectedCharacter && selectedCharacter.characterId) {
+                    characterData = selectedCharacter;
+                    setCharacter(selectedCharacter);
+                } else {
+                    // Otherwise, fetch from API
+                    const characterResponse = await axios.get('http://localhost:5233/api/usercharacter/selected', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (!characterResponse.data || !characterResponse.data.characterId) {
+                        navigate('/characters');
+                        return;
                     }
-                });
 
-                // If no character is selected, redirect to character selection
-                if (!characterResponse.data || !characterResponse.data.characterId) {
-                    console.log("No character found for this user");
-                    navigate('/characters');
-                    return;
+                    // Format the character data
+                    characterData = {
+                        characterId: characterResponse.data.characterId,
+                        name: characterResponse.data.name,
+                        class: characterResponse.data.class_,
+                        level: characterResponse.data.level || 1,
+                        experience: characterResponse.data.experience || 0,
+                        gold: characterResponse.data.gold || 0,
+                        imageUrl: characterResponse.data.imageUrl || ''
+                    };
+
+                    // Store the character
+                    setCharacter(characterData);
+                    setSelectedCharacter(characterData);
                 }
-
-                // Store the character
-                setCharacter(characterResponse.data);
-                console.log("Character loaded:", characterResponse.data.name);
 
                 // Then load quests
                 const questsResponse = await axios.get('http://localhost:5233/api/quest', {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: { Authorization: `Bearer ${token}` }
                 });
 
                 setQuests(questsResponse.data);
-                console.log("Quests loaded:", questsResponse.data.length);
+
+                // Also try to load completed quests for this character
+                if (characterData?.characterId) {
+                    try {
+                        const completedResponse = await axios.get(
+                            `http://localhost:5233/api/quest/character/${characterData.characterId}/completed`,
+                            { headers: { Authorization: `Bearer ${token}` } }
+                        );
+
+                        setCompletedQuests(completedResponse.data || []);
+                    } catch (err) {
+                        // Just log the error but continue - this isn't critical
+                        console.warn("Could not load completed quests:", err.message);
+                    }
+                }
 
             } catch (err) {
-                console.error("Error loading data:", err);
-
-                // If unauthorized, redirect to login
                 if (err.response?.status === 401) {
                     localStorage.removeItem('authToken');
                     navigate('/login');
@@ -89,7 +114,12 @@ export default function Quests() {
         };
 
         fetchData();
-    }, [navigate]);
+    }, [navigate, selectedCharacter, setSelectedCharacter]);
+
+    // Function to check if a quest is completed
+    const isQuestCompleted = (questId) => {
+        return completedQuests.some(q => q.questId === questId);
+    };
 
     // Function to handle quest attempts
     const handleQuestAttempt = async (quest) => {
@@ -101,22 +131,16 @@ export default function Quests() {
         try {
             const token = localStorage.getItem('authToken');
             if (!token) {
-                console.error("No auth token found for quest attempt");
                 navigate('/login');
                 return;
             }
 
-            console.log("Attempting quest:", quest.title, "with character:", character.name);
-
-            const questId = quest.questId || quest.id;
+            const questId = quest.questId;
             const characterId = character.characterId;
 
             const response = await axios.post(
                 'http://localhost:5233/api/quest/attempt',
-                {
-                    questId,
-                    characterId
-                },
+                { questId, characterId },
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -125,7 +149,27 @@ export default function Quests() {
                 }
             );
 
-            console.log("Quest attempt response:", response.data);
+            // If the quest was already completed
+            if (response.data.alreadyCompleted) {
+                setResult({
+                    success: true,
+                    alreadyCompleted: true,
+                    message: response.data.message || "You've already completed this quest!"
+                });
+
+                // Add to completed quests if not already there
+                if (!isQuestCompleted(questId)) {
+                    setCompletedQuests(prev => [
+                        ...prev,
+                        {
+                            questId,
+                            title: quest.title
+                        }
+                    ]);
+                }
+
+                return;
+            }
 
             // Process successful response
             if (response.data) {
@@ -135,26 +179,39 @@ export default function Quests() {
                     gold: response.data.goldGained,
                     message: response.data.message,
                     levelUp: response.data.levelUp,
-                    newLevel: response.data.newLevel
+                    newLevel: response.data.newLevel,
+                    currentExp: response.data.currentExp,
+                    expToNextLevel: response.data.expToNextLevel
                 };
 
                 setResult(questResult);
 
-                // If successful, update character
-                if (questResult.success) {
-                    // Update local character state with new values
-                    setCharacter(prev => ({
-                        ...prev,
-                        experience: (prev.experience || 0) + questResult.experience,
-                        gold: (prev.gold || 0) + questResult.gold,
-                        level: questResult.levelUp ? questResult.newLevel : prev.level
-                    }));
-                }
+                // Update both local state and context with new values
+                const updatedCharacter = {
+                    ...character,
+                    experience: response.data.currentExp,
+                    gold: (character.gold || 0) + questResult.gold,
+                    level: questResult.levelUp ? questResult.newLevel : character.level
+                };
+
+                setCharacter(updatedCharacter);
+                setSelectedCharacter(updatedCharacter);
+
+                // Add this quest to completed quests
+                setCompletedQuests(prev => [
+                    ...prev,
+                    {
+                        questId: quest.questId,
+                        title: quest.title,
+                        completedOn: new Date().toISOString(),
+                        experienceGained: questResult.experience,
+                        goldGained: questResult.gold
+                    }
+                ]);
             }
         } catch (err) {
-            console.error("Error attempting quest:", err);
-
             let errorMessage = "Failed to complete quest";
+
             if (err.response) {
                 errorMessage = err.response.data?.message || "Server error";
 
@@ -212,6 +269,7 @@ export default function Quests() {
             <div className="character-info">
                 <h2>{character.name}</h2>
                 <p>Level: {character.level} | Gold: {character.gold} | XP: {character.experience}</p>
+                {result?.expToNextLevel && <p>XP to next level: {result.expToNextLevel}</p>}
             </div>
 
             {/* Quest Results */}
@@ -219,7 +277,7 @@ export default function Quests() {
                 <div className={`quest-result ${result.success ? 'success' : 'failure'}`}>
                     <h3>{result.success ? 'Quest Completed!' : 'Quest Failed'}</h3>
                     <p>{result.message}</p>
-                    {result.success && (
+                    {result.success && !result.alreadyCompleted && (
                         <div className="rewards">
                             <p>Rewards: {result.experience} XP, {result.gold} Gold</p>
                             {result.levelUp && (
@@ -238,10 +296,11 @@ export default function Quests() {
                 ) : (
                     quests.map(quest => (
                         <QuestCard
-                            key={quest.questId || quest.id}
+                            key={quest.questId}
                             quest={quest}
                             onDoQuest={handleQuestAttempt}
                             isDisabled={processingQuest}
+                            isCompleted={isQuestCompleted(quest.questId)}
                         />
                     ))
                 )}
