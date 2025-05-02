@@ -41,6 +41,8 @@ export default function Characters() {
                     }
                 });
 
+                console.log("API response data:", response.data);
+
                 // Instead of filtering by characterId, we should use userCharacterId
                 // Each user-character combination should have a unique userCharacterId
                 const processedCharacters = response.data.map(char => ({
@@ -51,8 +53,11 @@ export default function Characters() {
                     level: char.level || 1,
                     experience: char.experience || 0,
                     gold: char.gold || 0,
-                    isSelected: char.isSelected || false
+                    isSelected: char.isSelected || false,
+                    imageUrl: char.imageUrl || '' // Make sure to include imageUrl
                 }));
+
+                console.log("Processed characters:", processedCharacters);
 
                 setCharacters(processedCharacters);
 
@@ -306,10 +311,26 @@ export default function Characters() {
                 <div className="character-list">
                     {characters.map(character => (
                         <div
-                            key={character.userCharacterId}  // Use userCharacterId as the key, not characterId
+                            key={character.userCharacterId}
                             className={`character-card ${character.isSelected ? 'selected' : ''}`}
                         >
                             {character.isSelected && <div className="selected-badge">Selected</div>}
+
+                            {/* Add character avatar */}
+                            <div className="character-avatar">
+                                {character.imageUrl ? (
+                                    <img
+                                        src={character.imageUrl}
+                                        alt={`${character.name}`}
+                                        className="character-image"
+                                    />
+                                ) : (
+                                    <div className="character-letter">
+                                        {character.name.charAt(0)}
+                                    </div>
+                                )}
+                            </div>
+
                             <h2>{character.name}</h2>
                             <p>Class: {character.class}</p>
                             <p>Level: {character.level || 1}</p>

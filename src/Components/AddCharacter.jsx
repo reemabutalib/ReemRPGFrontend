@@ -32,6 +32,8 @@ export function AddCharacter() {
                     }
                 });
 
+                console.log("Raw character data:", response.data);
+
                 setBaseCharacters(response.data);
             } catch (err) {
                 if (err.response && err.response.status === 401) {
@@ -170,20 +172,26 @@ export function AddCharacter() {
                 {baseCharacters.length === 0 ? (
                     <p className="no-characters">No characters available.</p>
                 ) : (
+                    // Inside your component's return statement, update the character card section:
                     <div className="base-character-grid">
                         {baseCharacters.map(character => (
                             <div key={character.characterId} className="base-character-card">
-                                <div className="character-image">
+                                {/* Replace this div with a proper avatar container */}
+                                <div className="character-avatar">
                                     {character.imageUrl ? (
-                                        <img src={character.imageUrl} alt={character.name} />
+                                        <img
+                                            src={character.imageUrl}
+                                            alt={character.name}
+                                            className="character-image"
+                                        />
                                     ) : (
-                                        <div className="placeholder-image">
+                                        <div className="character-letter">
                                             {character.name.charAt(0)}
                                         </div>
                                     )}
                                 </div>
                                 <h3>{character.name}</h3>
-                                <p className="character-class">{character.class}</p>
+                                <p className="character-class">{character.class_}</p>
                                 <div className="character-stats">
                                     <div className="stat">
                                         <span className="stat-label">STR</span>

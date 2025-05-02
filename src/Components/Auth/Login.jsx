@@ -204,9 +204,9 @@ export default function Login() {
                 </button>
             </form>
 
-            <div className="register-link">
+            <div className="register-prompt">
                 <p>Don't have an account?</p>
-                <button onClick={() => navigate('/register')} className="secondary-button">
+                <button onClick={() => navigate('/register')} className="register-button">
                     Register
                 </button>
             </div>

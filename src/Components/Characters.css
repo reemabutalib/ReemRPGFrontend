@@ -1,3 +1,147 @@
+:root {
+    --dark-bg: #1a1a2e;
+    --dark-surface: #16213e;
+    --dark-surface-lighter: #0f3460;
+    --dark-accent: #4361ee;
+    --dark-accent-hover: #3a56d4;
+    --dark-text: #e1e1e1;
+  }
+  
+  .characters-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    color: var(--dark-text);
+    min-height: 80vh;
+  }
+  
+  .characters-container h1 {
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Empty state styling */
+  .no-characters {
+    background-color: var(--dark-surface);
+    border-radius: 10px;
+    padding: 3rem;
+    text-align: center;
+    max-width: 600px;
+    margin: 2rem auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .no-characters p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: #cccccc;
+  }
+  
+  .create-character-btn {
+    background: linear-gradient(135deg, #4361ee 0%, #3a56d4 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+  }
+  
+  .create-character-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #3a56d4 0%, #2945c3 100%);
+  }
+  
+  .create-character-btn:active {
+    transform: translateY(1px);
+  }
+  
+  /* Character actions */
+  .character-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .create-button, .dashboard-button {
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+  }
+  
+  .create-button {
+    background-color: var(--dark-accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
+  }
+  
+  .create-button:hover {
+    background-color: var(--dark-accent-hover);
+    transform: translateY(-2px);
+  }
+  
+  .dashboard-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .dashboard-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+  }
+  
+  .create-button:disabled, .dashboard-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  /* Add responsive design */
+  @media (max-width: 768px) {
+    .characters-container {
+      padding: 1rem;
+    }
+    
+    .character-actions {
+      flex-direction: column;
+    }
+    
+    .character-actions button {
+      width: 100%;
+    }
+  }
+  
+  /* Loading and status indicators */
+  .loading-spinner {
+    display: block;
+    width: 50px;
+    height: 50px;
+    margin: 2rem auto;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-left-color: var(--dark-accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
 .characters {
     display: flex;
     flex-wrap: wrap;
@@ -183,4 +327,32 @@
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.character-avatar {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    background-color: #293145;
+    position: relative;
+}
+
+.character-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.character-letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.7);
 }

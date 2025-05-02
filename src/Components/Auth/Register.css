@@ -2,9 +2,8 @@
     max-width: 400px;
     margin: 50px auto;
     padding: 20px;
-    background-color: #4e0101;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+    background-color: #2a2a4a;
+    border-radius: 5px;
     color: white; /* Make all text inside the .register container white */
 }
 
@@ -73,4 +72,70 @@
 
 .login-nav-button:hover {
     background-color: #2980b9;
+}
+
+.success-message {
+    background-color: rgba(46, 125, 50, 0.1); /* Dark green with transparency */
+    border-left: 4px solid #2E7D32; /* Dark green border on left */
+    color: white; /* White text */
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.success-message p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.success-message p:first-child {
+    font-weight: 600;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Add success icon */
+.success-message p:first-child::before {
+    content: "✓";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #2E7D32;
+    color: white;
+    border-radius: 50%;
+    font-size: 14px;
+}
+
+/* Style the Go to Login button */
+.login-nav-button {
+    background-color: #2196F3; /* Use the same blue as your login button */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 12px 24px;
+    margin-top: 15px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 200px;
+}
+
+.login-nav-button:hover {
+    background-color: #1976D2;
+    transform: translateY(-2px);
+}
+
+.login-nav-button:active {
+    transform: translateY(0);
 }

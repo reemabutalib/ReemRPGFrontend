@@ -3,7 +3,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    background-color: #333;
+    background-color: #000000;
     color: white;
 }
 
@@ -35,11 +35,11 @@
 }
 
 .navbar-link:hover {
-    color: #ffcc00;
+    color: #2980b9;
 }
 
 .logout-button {
-    background-color: #ff4d4d;
+    background-color: #571515;
     color: white;
     border: none;
     border-radius: 5px;

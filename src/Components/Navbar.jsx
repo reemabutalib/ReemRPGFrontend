@@ -29,6 +29,7 @@ const Navbar = ({ showLogout }) => {
             <div className="navbar-links">
                 <span onClick={() => navigate('/dashboard')} className="navbar-link">Dashboard</span>
                 <span onClick={() => navigate('/characters')} className="navbar-link">Characters</span>
+                <span onClick={() => navigate('/quests')} className="navbar-link">Quests</span>
                 {showLogout && (
                     <button
                         className="logout-button"

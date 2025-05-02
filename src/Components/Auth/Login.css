@@ -2,7 +2,7 @@
     max-width: 400px;
     margin: 50px auto;
     padding: 20px;
-    background-color: #000000; /* Black background */
+    background-color: #2a2a4a; /* Black background */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
     color: white; /* White text */
@@ -38,7 +38,7 @@
 .login-button {
     width: 100%;
     padding: 10px;
-    background-color: #8B0000; /* Dark red button */
+    background-color: #007BFF; 
     color: white;
     border: none;
     border-radius: 4px;
@@ -47,5 +47,33 @@
 }
 
 .login-button:hover {
-    background-color: #600000; /* Darker red on hover */
+    background-color: #0056b3; 
+}
+
+/* Add these styles to make the Register button match the Login button */
+.register-button {
+    width: 100%;
+    max-width: 200px;
+    padding: 10px;
+    margin: 15px auto 0;
+    background-color: #007BFF; 
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
+.register-button:hover {
+    background-color: #0056b3; 
+}
+
+/* Style the "Don't have an account?" text */
+.register-prompt {
+    margin-top: 20px;
+    text-align: center;
+    color: white;
 }
