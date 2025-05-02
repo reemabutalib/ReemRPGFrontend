@@ -1,8 +1,8 @@
+import '@/styles/Dashboard.css';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/userContext'; // Make sure to import this
-import './Dashboard.css';
 
 export default function Dashboard() {
     const [character, setCharacter] = useState(null);

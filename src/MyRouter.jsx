@@ -1,15 +1,15 @@
-import { AddCharacter } from "@/Components/AddCharacter";
 import AuthLayout from "@/Components/Auth/AuthLayout";
 import Login from "@/Components/Auth/Login";
 import Register from "@/Components/Auth/Register";
 import VerificationFailed from "@/Components/Auth/VerificationFailed";
 import VerificationSuccess from "@/Components/Auth/VerificationSuccess";
-import Characters from "@/Components/Characters";
 import Dashboard from "@/Components/Dashboard";
 import Home from "@/Components/Home";
 import Navbar from "@/Components/Navbar";
-import Quests from "@/Components/Quests";
 import { checkAndRefreshToken } from "@/Components/Utils/AuthUtils";
+import { AddCharacter } from "@/pages/AddCharacter";
+import Characters from "@/pages/Characters";
+import Quests from "@/pages/Quests";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 

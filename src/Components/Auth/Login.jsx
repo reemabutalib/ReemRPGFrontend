@@ -1,10 +1,10 @@
+import '@/styles/Login.css';
+import '@/styles/Verification.css';
 import axios from 'axios';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useUser } from "../../context/userContext";
-import '../Auth/Verification.css';
 import { storeCredentialsForRefresh } from '../Utils/AuthUtils';
-import './Login.css';
 
 export default function Login() {
     const navigate = useNavigate();

@@ -1,6 +1,6 @@
+import '@/styles/Home.css';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import './Home.css';
 // @ts-ignore
 import logo from "@/assets/images/ReemRPGlogo.png";
 import home_header from "@/assets/images/home_header.jpg";

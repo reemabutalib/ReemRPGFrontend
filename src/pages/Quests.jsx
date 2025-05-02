@@ -1,8 +1,8 @@
+import "@/styles/Quests.css";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/userContext"; // Make sure to import this
-import "./Quests.css";
+import { useUser } from "../context/userContext";
 
 const QuestCard = ({ quest, onDoQuest, isDisabled, isCompleted }) => {
     return (

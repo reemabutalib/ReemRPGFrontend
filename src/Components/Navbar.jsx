@@ -1,9 +1,9 @@
 import logo from "@/assets/images/ReemRPGlogo.png";
+import '@/styles/Navbar.css';
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/userContext"; // Import the useUser hook
 import { handleLogout } from "./Auth/Logout"; // Import the handleLogout function
-import './Navbar.css';
 
 const Navbar = ({ showLogout }) => {
     const navigate = useNavigate();

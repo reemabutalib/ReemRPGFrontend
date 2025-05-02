@@ -1,8 +1,8 @@
+import '@/styles/AddCharacter.css';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/userContext';
-import './AddCharacter.css';
 
 export function AddCharacter() {
     const [baseCharacters, setBaseCharacters] = useState([]);

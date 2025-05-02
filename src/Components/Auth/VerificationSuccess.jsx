@@ -1,6 +1,6 @@
+import '@/styles/Verification.css';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import './Verification.css';
 
 const VerificationSuccess = () => {
     return (
