@@ -3,8 +3,8 @@ import '@/styles/Verification.css';
 import axios from 'axios';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { storeCredentialsForRefresh } from '../../components/Utils/AuthUtils';
 import { useUser } from "../../context/userContext";
-import { storeCredentialsForRefresh } from '../Utils/AuthUtils';
 
 export default function Login() {
     const navigate = useNavigate();

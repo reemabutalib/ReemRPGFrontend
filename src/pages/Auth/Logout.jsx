@@ -1,8 +1,8 @@
 import '@/styles/Logout.css';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { clearAuthData } from "../../components/Utils/AuthUtils";
 import { useUser } from "../../context/userContext";
-import { clearAuthData } from "../Utils/AuthUtils";
 
 // Export the handleLogout function so it can be used elsewhere
 export const handleLogout = (navigate, clearUserData = null) => {

@@ -1,13 +1,15 @@
-import AuthLayout from "@/Components/Auth/AuthLayout";
-import Login from "@/Components/Auth/Login";
-import Register from "@/Components/Auth/Register";
-import VerificationFailed from "@/Components/Auth/VerificationFailed";
-import VerificationSuccess from "@/Components/Auth/VerificationSuccess";
-import Dashboard from "@/Components/Dashboard";
-import Home from "@/Components/Home";
-import Navbar from "@/Components/Navbar";
-import { checkAndRefreshToken } from "@/Components/Utils/AuthUtils";
+import AdminDashboard from '@/components/AdminDashboard';
+import AdminRoute from "@/components/AdminRoute";
+import Dashboard from "@/components/Dashboard";
+import Home from "@/components/Home";
+import Navbar from "@/components/Navbar";
+import { checkAndRefreshToken } from "@/components/Utils/AuthUtils";
 import { AddCharacter } from "@/pages/AddCharacter";
+import AuthLayout from "@/pages/Auth/AuthLayout";
+import Login from "@/pages/Auth/Login";
+import Register from "@/pages/Auth/Register";
+import VerificationFailed from "@/pages/Auth/VerificationFailed";
+import VerificationSuccess from "@/pages/Auth/VerificationSuccess";
 import Characters from "@/pages/Characters";
 import Quests from "@/pages/Quests";
 import { useEffect, useState } from "react";
@@ -40,6 +42,12 @@ function AppRoutes() {
                     <Route path="/quests" element={<Quests />} />
                 </Route>
 
+                {/* Admin Dashboard - protected route */}
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route element={<AdminRoute />}>
+                </Route>
+
+                {/* 404 Not Found */}
                 {/* Fallback route for non-existent pages */}
                 <Route path="*" element={<NotFoundPage />} />
             </Routes>

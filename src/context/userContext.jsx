@@ -9,6 +9,7 @@ const UserContext = createContext({
   loading: true,
   error: null,
   userId: null,
+  isAdmin: false,
   clearUserData: () => { }
 });
 
@@ -20,6 +21,7 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Extract user ID from token
   const getUserIdFromToken = () => {
@@ -39,15 +41,66 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Check authentication and set userId on component mount
-  useEffect(() => {
-    const checkAuth = () => {
-      const id = getUserIdFromToken();
+  // Check if user is Admin from token
+  const checkIsAdminFromToken = (token) => {
+    if (!token) return false;
 
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+
+      // Check for role claim
+      const roleClaim = payload.role ||
+        payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+
+      // Role could be string or array
+      if (Array.isArray(roleClaim)) {
+        return roleClaim.includes('Admin');
+      }
+
+      return roleClaim === 'Admin';
+    } catch (err) {
+      console.error('Error checking admin status from token:', err);
+      return false;
+    }
+  };
+
+  // Check authentication, set userId, and check admin status on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setUserId(null);
+        setIsAdmin(false);
+        setSelectedCharacterState(null);
+        return;
+      }
+
+      const id = getUserIdFromToken();
       if (id) {
         setUserId(id);
+
+        // Try to check admin status from token first
+        const isAdminFromToken = checkIsAdminFromToken(token);
+        setIsAdmin(isAdminFromToken);
+
+        // For extra verification, check with the server if needed
+        try {
+          const response = await axios.get('http://localhost:5233/api/account/is-admin', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (response.data && typeof response.data.isAdmin === 'boolean') {
+            setIsAdmin(response.data.isAdmin);
+          }
+        } catch (err) {
+          console.error('Error verifying admin status with server:', err);
+          // Fallback to token-based check result if server check fails
+        }
       } else {
         setUserId(null);
+        setIsAdmin(false);
         setSelectedCharacterState(null);
       }
     };
@@ -222,6 +275,7 @@ export const UserProvider = ({ children }) => {
     setSelectedCharacterState(null);
     setCharacters([]);
     setUserId(null);
+    setIsAdmin(false);
     setError(null);
   };
 
@@ -237,6 +291,7 @@ export const UserProvider = ({ children }) => {
         loading,
         error,
         userId,
+        isAdmin,
         clearUserData
       }}
     >
