@@ -2,14 +2,14 @@ import '@/styles/Dashboard.css';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '../context/userContext'; // Make sure to import this
+import { useUser } from '../context/userContext';
 
 export default function Dashboard() {
     const [character, setCharacter] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
-    const { selectedCharacter, setSelectedCharacter } = useUser();
+    const { selectedCharacter, setSelectedCharacter, refreshData } = useUser(); // Added refreshData
 
     // On component mount, fetch the user's character from API
     useEffect(() => {
@@ -45,7 +45,7 @@ export default function Dashboard() {
                     const characterData = {
                         characterId: response.data.characterId,
                         name: response.data.name,
-                        class: response.data.class_,  // Note the underscore in API response
+                        class: response.data.class_,
                         level: response.data.level,
                         experience: response.data.experience,
                         gold: response.data.gold,
@@ -81,6 +81,20 @@ export default function Dashboard() {
         fetchUserCharacter();
     }, [navigate, selectedCharacter, setSelectedCharacter]);
 
+    // Function to handle manual refresh
+    const handleRefreshData = () => {
+        setLoading(true);
+        refreshData(); // This will trigger a re-fetch in userContext
+
+        // small delay to make sure the loading indicator shows
+        setTimeout(() => {
+            if (selectedCharacter) {
+                setCharacter(selectedCharacter);
+            }
+            setLoading(false);
+        }, 500);
+    };
+
     if (loading) {
         return (
             <div className="dashboard-container loading">
@@ -95,7 +109,7 @@ export default function Dashboard() {
                 <h2>Something went wrong</h2>
                 <p>{error}</p>
                 <div className="error-actions">
-                    <button onClick={() => window.location.reload()} className="primary-button">
+                    <button onClick={handleRefreshData} className="primary-button">
                         Try Again
                     </button>
                     <button onClick={() => navigate('/characters')} className="secondary-button">
@@ -113,7 +127,17 @@ export default function Dashboard() {
 
     return (
         <div className="dashboard-container">
-            <h1>{character.name}'s Dashboard</h1>
+            <div className="dashboard-header">
+                <h1>{character.name}'s Dashboard</h1>
+                {/* Add refresh button */}
+                <button
+                    onClick={handleRefreshData}
+                    className="refresh-button"
+                    title="Refresh dashboard data"
+                >
+                    <span className="refresh-icon">↻</span> Refresh
+                </button>
+            </div>
 
             <div className="character-banner">
                 <div className="character-avatar">

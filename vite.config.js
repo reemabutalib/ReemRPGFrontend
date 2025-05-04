@@ -9,8 +9,18 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),  // Use path.resolve with __dirname
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   plugins: [react(), eslint()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.jsx'],
+    include: ['**/*.{test,spec}.{js,jsx}'],
+    coverage: {
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'src/test/setup.js'],
+    },
+  },
 })
