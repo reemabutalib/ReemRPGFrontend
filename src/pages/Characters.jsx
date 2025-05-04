@@ -41,23 +41,39 @@ export default function Characters() {
                     }
                 });
 
-                console.log("API response data:", response.data);
-
                 // Instead of filtering by characterId, we should use userCharacterId
                 // Each user-character combination should have a unique userCharacterId
-                const processedCharacters = response.data.map(char => ({
-                    characterId: char.characterId,
-                    userCharacterId: char.userCharacterId || char.id, // This should be unique per user
-                    name: char.characterName || char.name,
-                    class: char.class_,
-                    level: char.level || 1,
-                    experience: char.experience || 0,
-                    gold: char.gold || 0,
-                    isSelected: char.isSelected || false,
-                    imageUrl: char.imageUrl || '' // Make sure to include imageUrl
-                }));
+                const processedCharacters = response.data.map(char => {
+                    // Map character IDs to specific images (the same ones from AddCharacter.jsx)
+                    const characterImages = {
+                        1: '/assets/images/Arthas.JPG',
+                        2: '/assets/images/Ezra.jpeg',
+                        3: '/assets/images/Rogue.png',
+                        4: '/assets/images/Archer.png',
+                        5: '/assets/images/Simon.png',
+                        6: '/assets/images/Elara.png',
+                        7: '/assets/images/Grimm.png',
+                        8: '/assets/images/Kaia.png'
+                    };
 
-                console.log("Processed characters:", processedCharacters);
+                    // Get image based on characterId or use a fallback based on class
+                    let imageUrl = characterImages[char.characterId];
+
+                    console.log(`Character ${char.name} (ID: ${char.characterId}): Using image ${imageUrl}`);
+
+                    return {
+                        characterId: char.characterId,
+                        userCharacterId: char.userCharacterId || char.id, // This should be unique per user
+                        name: char.characterName || char.name,
+                        class: char.class_,
+                        level: char.level || 1,
+                        experience: char.experience || 0,
+                        gold: char.gold || 0,
+                        isSelected: char.isSelected || false,
+                        imageUrl: imageUrl // Use our mapped image URL instead of the one from API
+                    };
+                });
+
 
                 setCharacters(processedCharacters);
 
@@ -246,7 +262,7 @@ export default function Characters() {
         <div className="characters-container">
             <h1>Your Characters</h1>
 
-            {/* Welcome message (unchanged) */}
+            {/* Welcome message */}
             {showWelcomeMessage && (
                 <div className="welcome-message">
                     <h2>Welcome to Reem RPG!</h2>
@@ -260,14 +276,14 @@ export default function Characters() {
                 </div>
             )}
 
-            {/* Loading overlay (unchanged) */}
+            {/* Loading overlay */}
             {loading && characters.length > 0 && (
                 <div className="overlay-loading">
                     <div className="loading-spinner">Processing...</div>
                 </div>
             )}
 
-            {/* Confirmation Dialog - new component */}
+            {/* Confirmation Dialog */}
             {showConfirmation && (
                 <div className="confirmation-overlay">
                     <div className="confirmation-dialog">
@@ -296,7 +312,7 @@ export default function Characters() {
                 </div>
             )}
 
-            {/* Empty state (unchanged) */}
+            {/* Empty state */}
             {characters.length === 0 ? (
                 <div className="no-characters">
                     <p>You don't have any characters yet.</p>
@@ -308,66 +324,111 @@ export default function Characters() {
                     </button>
                 </div>
             ) : (
-                <div className="character-list">
-                    {characters.map(character => (
-                        <div
-                            key={character.userCharacterId}
-                            className={`character-card ${character.isSelected ? 'selected' : ''}`}
-                        >
-                            {character.isSelected && <div className="selected-badge">Selected</div>}
+                <>
+                    <h2>Choose a Character to Play</h2>
+                    <div className="character-grid">
+                        {characters.map(character => (
+                            <div
+                                key={character.userCharacterId}
+                                className={`character-card ${character.isSelected ? 'selected' : ''}`}
+                            >
+                                {character.isSelected && <div className="selected-badge">Selected</div>}
 
-                            {/* Add character avatar */}
-                            <div className="character-avatar">
-                                {character.imageUrl ? (
-                                    <img
-                                        src={character.imageUrl}
-                                        alt={`${character.name}`}
-                                        className="character-image"
-                                    />
-                                ) : (
-                                    <div className="character-letter">
-                                        {character.name.charAt(0)}
+                                <div className="character-avatar">
+                                    {character.imageUrl ? (
+                                        <img
+                                            src={character.imageUrl}
+                                            alt={`${character.name}`}
+                                            className="character-image"
+                                            onError={(e) => {
+                                                // Prevent infinite loops - only set once
+                                                if (!e.target.hasAttribute('data-error-handled')) {
+                                                    e.target.setAttribute('data-error-handled', 'true');
+                                                    e.target.onerror = null; // Remove handler to prevent loops
+
+                                                    // Switch to letter fallback instead of loading another potentially 
+                                                    // missing image which would cause a loop
+                                                    const parent = e.target.parentNode;
+                                                    e.target.style.display = 'none';
+
+                                                    // Create letter fallback
+                                                    const letterDiv = document.createElement('div');
+                                                    letterDiv.className = 'character-letter';
+                                                    letterDiv.textContent = character.name.charAt(0);
+                                                    parent.appendChild(letterDiv);
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="character-letter">
+                                            {character.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <h3>{character.name}</h3>
+                                <p className="character-class">{character.class}</p>
+
+                                <div className="character-stats">
+                                    <div className="stat">
+                                        <span className="stat-label">STR</span>
+                                        <span className="stat-value">10</span>
                                     </div>
-                                )}
+                                    <div className="stat">
+                                        <span className="stat-label">INT</span>
+                                        <span className="stat-value">10</span>
+                                    </div>
+                                    <div className="stat">
+                                        <span className="stat-label">AGI</span>
+                                        <span className="stat-value">10</span>
+                                    </div>
+                                </div>
+
+                                <div className="character-info">
+                                    <div className="info-row">
+                                        <span>Level:</span>
+                                        <span>{character.level || 1}</span>
+                                    </div>
+                                    <div className="info-row">
+                                        <span>XP:</span>
+                                        <span>{character.experience}</span>
+                                    </div>
+                                    <div className="info-row">
+                                        <span>Gold:</span>
+                                        <span>{character.gold}</span>
+                                    </div>
+                                </div>
+
+                                <div className="character-buttons">
+                                    <button
+                                        onClick={() => handleSelectCharacter(character)}
+                                        className="select-button"
+                                        disabled={loading || character.isSelected}
+                                    >
+                                        {character.isSelected ? 'Current Character' : 'Select'}
+                                    </button>
+                                    <button
+                                        onClick={() => confirmDelete(character)}
+                                        className="delete-button"
+                                        disabled={loading}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
+                        ))}
 
-                            <h2>{character.name}</h2>
-                            <p>Class: {character.class}</p>
-                            <p>Level: {character.level || 1}</p>
-                            <p>Experience: {character.experience}</p>
-                            <p>Gold: {character.gold}</p>
-
-                            <div className="character-buttons">
-                                <button
-                                    onClick={() => handleSelectCharacter(character)}
-                                    className="select-button"
-                                    disabled={loading || character.isSelected}
-                                >
-                                    {loading ? 'Selecting...' :
-                                        character.isSelected ? 'Current Character' : 'Select Character'}
-                                </button>
-
-                                <button
-                                    onClick={() => confirmDelete(character)}
-                                    className="delete-button"
-                                    disabled={loading}
-                                >
-                                    Remove
-                                </button>
-                            </div>
+                        {/* Add Character Card */}
+                        <div className="character-card add-character-card" onClick={() => navigate('/add-character')}>
+                            <div className="add-character-icon">+</div>
+                            <h3>Add Character</h3>
+                            <p>Choose a new hero to add to your roster</p>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                </>
             )}
 
             <div className="character-actions">
-                <button
-                    onClick={() => navigate('/add-character')}
-                    className="create-button"
-                    disabled={loading}
-                >
-                    Add Character
-                </button>
                 <button
                     onClick={() => navigate('/dashboard')}
                     className="dashboard-button"

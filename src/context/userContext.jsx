@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 // Create the context with default values
 const UserContext = createContext({
@@ -10,7 +10,9 @@ const UserContext = createContext({
   error: null,
   userId: null,
   isAdmin: false,
-  clearUserData: () => { }
+  clearUserData: () => { },
+  refreshData: () => { },
+  refreshToken: () => { }
 });
 
 export const useUser = () => useContext(UserContext);
@@ -22,6 +24,13 @@ export const UserProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // data version for generic refresh
+  const [dataVersion, setDataVersion] = useState(1);
+
+  // token related state
+  const [tokenExpiryTime, setTokenExpiryTime] = useState(null);
+  const [tokenRefreshInProgress, setTokenRefreshInProgress] = useState(false);
 
   // Extract user ID from token
   const getUserIdFromToken = () => {
@@ -66,6 +75,80 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Get token expiration time
+  const getTokenExpiryTime = (token) => {
+    if (!token) return null;
+
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+
+      // exp is in seconds, convert to milliseconds
+      return payload.exp * 1000;
+    } catch (err) {
+      console.error('Error calculating token expiry time:', err);
+      return null;
+    }
+  };
+
+  // Generic data refresh function
+  const refreshData = useCallback(() => {
+    console.log("Refreshing data...");
+    setDataVersion(v => v + 1);
+  }, []);
+
+  // Token refresh function
+  const refreshToken = useCallback(async () => {
+    if (tokenRefreshInProgress) return false;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return false;
+
+      setTokenRefreshInProgress(true);
+
+      const response = await axios.post(
+        'http://localhost:5233/api/auth/refresh',
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data && response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+
+        // Update token expiry time
+        const newExpiryTime = getTokenExpiryTime(response.data.token);
+        setTokenExpiryTime(newExpiryTime);
+
+        // Check if admin status or user ID changed with new token
+        const newUserId = getUserIdFromToken();
+        if (newUserId && newUserId !== userId) {
+          setUserId(newUserId);
+        }
+
+        const newIsAdmin = checkIsAdminFromToken(response.data.token);
+        if (newIsAdmin !== isAdmin) {
+          setIsAdmin(newIsAdmin);
+        }
+
+        console.log('Auth token refreshed successfully');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error refreshing auth token:', err);
+      if (err.response && err.response.status === 401) {
+        clearUserData();
+        localStorage.removeItem('authToken');
+        window.location.href = '/login?session=expired';
+      }
+      return false;
+    } finally {
+      setTokenRefreshInProgress(false);
+    }
+  }, [tokenRefreshInProgress, userId, isAdmin]);
+
   // Check authentication, set userId, and check admin status on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -74,6 +157,7 @@ export const UserProvider = ({ children }) => {
         setUserId(null);
         setIsAdmin(false);
         setSelectedCharacterState(null);
+        setTokenExpiryTime(null);
         return;
       }
 
@@ -81,34 +165,68 @@ export const UserProvider = ({ children }) => {
       if (id) {
         setUserId(id);
 
-        // Try to check admin status from token first
+        // check admin status from token 
         const isAdminFromToken = checkIsAdminFromToken(token);
         setIsAdmin(isAdminFromToken);
 
-        // For extra verification, check with the server if needed
-        try {
-          const response = await axios.get('http://localhost:5233/api/account/is-admin', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+        // Set token expiry time
+        const expiryTime = getTokenExpiryTime(token);
+        setTokenExpiryTime(expiryTime);
 
-          if (response.data && typeof response.data.isAdmin === 'boolean') {
-            setIsAdmin(response.data.isAdmin);
+        // Check if token is already expired
+        if (expiryTime && Date.now() >= expiryTime) {
+          console.log('Token is expired, trying to refresh...');
+          const refreshed = await refreshToken();
+          if (!refreshed) {
+            clearUserData();
+            localStorage.removeItem('authToken');
           }
-        } catch (err) {
-          console.error('Error verifying admin status with server:', err);
-          // Fallback to token-based check result if server check fails
         }
       } else {
         setUserId(null);
         setIsAdmin(false);
         setSelectedCharacterState(null);
+        setTokenExpiryTime(null);
       }
     };
 
     checkAuth();
-  }, []);
+  }, [refreshToken]);
 
-  // Load characters when userId changes
+  // Add token expiry monitoring
+  useEffect(() => {
+    if (!tokenExpiryTime || !userId) return;
+
+    const timeUntilExpiry = tokenExpiryTime - Date.now();
+
+    // If token expires in less than 5 minutes, refresh now
+    if (timeUntilExpiry < 5 * 60 * 1000) {
+      refreshToken();
+      return;
+    }
+
+    // Set timer to refresh token when it's 80% through its lifetime
+    const refreshTimer = setTimeout(() => {
+      refreshToken();
+    }, timeUntilExpiry * 0.8);
+
+    // Set timer to logout when token expires (with a small buffer)
+    const logoutTimer = setTimeout(() => {
+      if (!tokenRefreshInProgress) {
+        console.log('Token expired, logging out...');
+        clearUserData();
+        localStorage.removeItem('authToken');
+        window.location.href = '/login?session=expired';
+      }
+    }, timeUntilExpiry - 10000); // 10 seconds before expiry
+
+    return () => {
+      clearTimeout(refreshTimer);
+      clearTimeout(logoutTimer);
+    };
+  }, [tokenExpiryTime, userId, refreshToken, tokenRefreshInProgress]);
+
+  // Load characters when userId or dataVersion changes
   useEffect(() => {
     const fetchUserData = async () => {
       if (!userId) {
@@ -183,7 +301,7 @@ export const UserProvider = ({ children }) => {
     };
 
     fetchUserData();
-  }, [userId]);
+  }, [userId, dataVersion]); // Added dataVersion as dependency
 
   // Handle character selection with proper guard against infinite loops
   const setSelectedCharacter = async (character) => {
@@ -277,6 +395,7 @@ export const UserProvider = ({ children }) => {
     setUserId(null);
     setIsAdmin(false);
     setError(null);
+    setTokenExpiryTime(null);
   };
 
   // Return the context provider with values
@@ -292,7 +411,9 @@ export const UserProvider = ({ children }) => {
         error,
         userId,
         isAdmin,
-        clearUserData
+        clearUserData,
+        refreshData,
+        refreshToken
       }}
     >
       {children}

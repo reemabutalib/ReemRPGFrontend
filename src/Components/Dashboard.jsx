@@ -23,8 +23,15 @@ export default function Dashboard() {
                 }
 
                 const token = localStorage.getItem('authToken');
-                if (!token) {
+
+                // Only redirect if we're on the dashboard page
+                // This checks if we're on the dashboard page before redirecting
+                if (!token && window.location.pathname === '/dashboard') {
                     navigate('/login');
+                    return;
+                } else if (!token) {
+                    // If no token but we're on a different page, just stop loading
+                    setLoading(false);
                     return;
                 }
 

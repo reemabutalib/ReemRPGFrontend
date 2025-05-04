@@ -65,3 +65,67 @@
     background-color: rgba(193, 53, 78, 0.4);
     transform: translateY(-2px);
 }
+
+.logout-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.logout-confirm {
+    background-color: #2a2a4a;
+    border-radius: 8px;
+    padding: 25px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.logout-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.logout-cancel-button {
+    background-color: #374151;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.logout-cancel-button:hover {
+    background-color: #4B5563;
+}
+
+.logout-confirm-button {
+    background-color: #DC2626;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.logout-confirm-button:hover {
+    background-color: #B91C1C;
+}
+
+.logout-small-text {
+    font-size: 0.9rem;
+    color: #9CA3AF;
+    margin-bottom: 10px;
+}

@@ -1,3 +1,4 @@
+import Navbar from "@/components/Navbar";
 import { useUser } from '@/context/userContext';
 import '@/styles/AdminDashboard.css';
 import axios from 'axios';
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
         baseStrength: 1,
         baseAgility: 1,
         baseIntelligence: 1,
+        baseHealth: 100,
         imageUrl: ''
     });
 
@@ -113,6 +115,7 @@ export default function AdminDashboard() {
                     baseStrength: 1,
                     baseAgility: 1,
                     baseIntelligence: 1,
+                    baseHealth: 100,
                     imageUrl: ''
                 });
             } else if (type === 'quest') {
@@ -287,335 +290,356 @@ export default function AdminDashboard() {
     };
 
     if (loading) {
-        return <div className="admin-loading">Loading admin dashboard...</div>;
+        return (
+            <>
+                <Navbar showLogout={true} /> {/* Add Navbar to loading state */}
+                <div className="admin-loading">Loading admin dashboard...</div>
+            </>
+        );
     }
 
     return (
-        <div className="admin-dashboard">
-            <h1>Admin Dashboard</h1>
+        <>
+            <Navbar showLogout={true} />
+            <div className="admin-dashboard">
+                <h1>Admin Dashboard</h1>
 
-            <div className="admin-tabs">
-                <button
-                    className={activeTab === 'users' ? 'active' : ''}
-                    onClick={() => setActiveTab('users')}
-                >
-                    Users
-                </button>
-                <button
-                    className={activeTab === 'characters' ? 'active' : ''}
-                    onClick={() => setActiveTab('characters')}
-                >
-                    Characters
-                </button>
-                <button
-                    className={activeTab === 'quests' ? 'active' : ''}
-                    onClick={() => setActiveTab('quests')}
-                >
-                    Quests
-                </button>
-            </div>
-
-            <div className="admin-content">
-                {activeTab === 'users' && (
-                    <div className="users-table">
-                        <h2>User Management</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Email</th>
-                                    <th>Email Verified</th>
-                                    <th>Role</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {users.map(user => (
-                                    <tr key={user.id}>
-                                        <td>{user.email}</td>
-                                        <td>{user.emailConfirmed ? 'Yes' : 'No'}</td>
-                                        <td>{user.roles?.join(', ') || 'User'}</td>
-                                        <td>
-                                            <button className="edit-btn">Edit</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {activeTab === 'characters' && (
-                    <div className="characters-table">
-                        <div className="admin-header">
-                            <h2>Character Management</h2>
-                            <button
-                                className="create-btn"
-                                onClick={() => handleOpenModal('character')}
-                            >
-                                Create Character
-                            </button>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Class</th>
-                                    <th>Strength</th>
-                                    <th>Agility</th>
-                                    <th>Intelligence</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {characters.map(char => (
-                                    <tr key={char.characterId}>
-                                        <td>{char.name}</td>
-                                        <td>{char.class_}</td>
-                                        <td>{char.baseStrength}</td>
-                                        <td>{char.baseAgility}</td>
-                                        <td>{char.baseIntelligence}</td>
-                                        <td className="action-buttons">
-                                            <button
-                                                className="edit-btn"
-                                                onClick={() => handleOpenModal('editCharacter', char)}
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                className="delete-btn"
-                                                onClick={() => handleDeleteCharacter(char.characterId)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-
-                {activeTab === 'quests' && (
-                    <div className="quests-table">
-                        <div className="admin-header">
-                            <h2>Quest Management</h2>
-                            <button
-                                className="create-btn"
-                                onClick={() => handleOpenModal('quest')}
-                            >
-                                Create Quest
-                            </button>
-                        </div>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Title</th>
-                                    <th>Experience</th>
-                                    <th>Gold</th>
-                                    <th>Required Level</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {quests.map(quest => (
-                                    <tr key={quest.questId}>
-                                        <td>{quest.title}</td>
-                                        <td>{quest.experienceReward}</td>
-                                        <td>{quest.goldReward}</td>
-                                        <td>{quest.requiredLevel}</td>
-                                        <td className="action-buttons">
-                                            <button
-                                                className="edit-btn"
-                                                onClick={() => handleOpenModal('editQuest', quest)}
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                className="delete-btn"
-                                                onClick={() => handleDeleteQuest(quest.questId)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Modal for Creating/Editing Characters and Quests */}
-            {showModal && (
-                <div className="modal-backdrop">
-                    <div className="admin-modal">
-                        {/* Character Create/Edit Form */}
-                        {(modalType === 'character' || modalType === 'editCharacter') && (
-                            <>
-                                <h2>{editItem ? 'Edit Character' : 'Create Character'}</h2>
-                                <form onSubmit={handleCharacterSubmit}>
-                                    <div className="form-group">
-                                        <label>Name</label>
-                                        <input
-                                            type="text"
-                                            name="name"
-                                            value={characterForm.name}
-                                            onChange={handleCharacterChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Class</label>
-                                        <input
-                                            type="text"
-                                            name="class_"
-                                            value={characterForm.class_}
-                                            onChange={handleCharacterChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Strength</label>
-                                            <input
-                                                type="number"
-                                                name="baseStrength"
-                                                value={characterForm.baseStrength}
-                                                onChange={handleCharacterChange}
-                                                min="1"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="form-group">
-                                            <label>Agility</label>
-                                            <input
-                                                type="number"
-                                                name="baseAgility"
-                                                value={characterForm.baseAgility}
-                                                onChange={handleCharacterChange}
-                                                min="1"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="form-group">
-                                            <label>Intelligence</label>
-                                            <input
-                                                type="number"
-                                                name="baseIntelligence"
-                                                value={characterForm.baseIntelligence}
-                                                onChange={handleCharacterChange}
-                                                min="1"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Image URL</label>
-                                        <input
-                                            type="text"
-                                            name="imageUrl"
-                                            value={characterForm.imageUrl}
-                                            onChange={handleCharacterChange}
-                                            placeholder="/assets/images/character.jpg"
-                                        />
-                                    </div>
-
-                                    <div className="modal-buttons">
-                                        <button type="button" onClick={() => setShowModal(false)}>
-                                            Cancel
-                                        </button>
-                                        <button type="submit" className="save-btn">
-                                            {editItem ? 'Update Character' : 'Create Character'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </>
-                        )}
-
-                        {/* Quest Create/Edit Form */}
-                        {(modalType === 'quest' || modalType === 'editQuest') && (
-                            <>
-                                <h2>{editItem ? 'Edit Quest' : 'Create Quest'}</h2>
-                                <form onSubmit={handleQuestSubmit}>
-                                    <div className="form-group">
-                                        <label>Title</label>
-                                        <input
-                                            type="text"
-                                            name="title"
-                                            value={questForm.title}
-                                            onChange={handleQuestChange}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-group">
-                                        <label>Description</label>
-                                        <textarea
-                                            name="description"
-                                            value={questForm.description}
-                                            onChange={handleQuestChange}
-                                            rows="3"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="form-row">
-                                        <div className="form-group">
-                                            <label>Experience Reward</label>
-                                            <input
-                                                type="number"
-                                                name="experienceReward"
-                                                value={questForm.experienceReward}
-                                                onChange={handleQuestChange}
-                                                min="1"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="form-group">
-                                            <label>Gold Reward</label>
-                                            <input
-                                                type="number"
-                                                name="goldReward"
-                                                value={questForm.goldReward}
-                                                onChange={handleQuestChange}
-                                                min="0"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="form-group">
-                                            <label>Required Level</label>
-                                            <input
-                                                type="number"
-                                                name="requiredLevel"
-                                                value={questForm.requiredLevel}
-                                                onChange={handleQuestChange}
-                                                min="1"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="modal-buttons">
-                                        <button type="button" onClick={() => setShowModal(false)}>
-                                            Cancel
-                                        </button>
-                                        <button type="submit" className="save-btn">
-                                            {editItem ? 'Update Quest' : 'Create Quest'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </>
-                        )}
-                    </div>
+                <div className="admin-tabs">
+                    <button
+                        className={activeTab === 'users' ? 'active' : ''}
+                        onClick={() => setActiveTab('users')}
+                    >
+                        Users
+                    </button>
+                    <button
+                        className={activeTab === 'characters' ? 'active' : ''}
+                        onClick={() => setActiveTab('characters')}
+                    >
+                        Characters
+                    </button>
+                    <button
+                        className={activeTab === 'quests' ? 'active' : ''}
+                        onClick={() => setActiveTab('quests')}
+                    >
+                        Quests
+                    </button>
                 </div>
-            )}
-        </div>
+
+
+                <div className="admin-content">
+                    {activeTab === 'users' && (
+                        <div className="users-table">
+                            <h2>User Management</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th>Email Verified</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {users.map(user => (
+                                        <tr key={user.id}>
+                                            <td>{user.email}</td>
+                                            <td>{user.emailConfirmed ? 'Yes' : 'No'}</td>
+                                            <td>{user.roles?.join(', ') || 'User'}</td>
+                                            <td>
+                                                <button className="edit-btn">Edit</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {activeTab === 'characters' && (
+                        <div className="characters-table">
+                            <div className="admin-header">
+                                <h2>Character Management</h2>
+                                <button
+                                    className="create-btn"
+                                    onClick={() => handleOpenModal('character')}
+                                >
+                                    Create Character
+                                </button>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Class</th>
+                                        <th>Strength</th>
+                                        <th>Agility</th>
+                                        <th>Intelligence</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {characters.map(char => (
+                                        <tr key={char.characterId}>
+                                            <td>{char.name}</td>
+                                            <td>{char.class_}</td>
+                                            <td>{char.baseStrength}</td>
+                                            <td>{char.baseAgility}</td>
+                                            <td>{char.baseIntelligence}</td>
+                                            <td className="action-buttons">
+                                                <button
+                                                    className="edit-btn"
+                                                    onClick={() => handleOpenModal('editCharacter', char)}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    className="delete-btn"
+                                                    onClick={() => handleDeleteCharacter(char.characterId)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {activeTab === 'quests' && (
+                        <div className="quests-table">
+                            <div className="admin-header">
+                                <h2>Quest Management</h2>
+                                <button
+                                    className="create-btn"
+                                    onClick={() => handleOpenModal('quest')}
+                                >
+                                    Create Quest
+                                </button>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Experience</th>
+                                        <th>Gold</th>
+                                        <th>Required Level</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {quests.map(quest => (
+                                        <tr key={quest.questId}>
+                                            <td>{quest.title}</td>
+                                            <td>{quest.experienceReward}</td>
+                                            <td>{quest.goldReward}</td>
+                                            <td>{quest.requiredLevel}</td>
+                                            <td className="action-buttons">
+                                                <button
+                                                    className="edit-btn"
+                                                    onClick={() => handleOpenModal('editQuest', quest)}
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    className="delete-btn"
+                                                    onClick={() => handleDeleteQuest(quest.questId)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Modal for Creating/Editing Characters and Quests */}
+                {showModal && (
+                    <div className="modal-backdrop">
+                        <div className="admin-modal">
+                            {/* Character Create/Edit Form */}
+                            {(modalType === 'character' || modalType === 'editCharacter') && (
+                                <>
+                                    <h2>{editItem ? 'Edit Character' : 'Create Character'}</h2>
+                                    <form onSubmit={handleCharacterSubmit}>
+                                        <div className="form-group">
+                                            <label>Name</label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                value={characterForm.name}
+                                                onChange={handleCharacterChange}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label>Class</label>
+                                            <input
+                                                type="text"
+                                                name="class_"
+                                                value={characterForm.class_}
+                                                onChange={handleCharacterChange}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Strength</label>
+                                                <input
+                                                    type="number"
+                                                    name="baseStrength"
+                                                    value={characterForm.baseStrength}
+                                                    onChange={handleCharacterChange}
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label>Agility</label>
+                                                <input
+                                                    type="number"
+                                                    name="baseAgility"
+                                                    value={characterForm.baseAgility}
+                                                    onChange={handleCharacterChange}
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label>Intelligence</label>
+                                                <input
+                                                    type="number"
+                                                    name="baseIntelligence"
+                                                    value={characterForm.baseIntelligence}
+                                                    onChange={handleCharacterChange}
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label>Health</label>
+                                            <input
+                                                type="number"
+                                                name="baseHealth"
+                                                value={characterForm.baseHealth}
+                                                onChange={handleCharacterChange}
+                                                min="1"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label>Image URL</label>
+                                            <input
+                                                type="text"
+                                                name="imageUrl"
+                                                value={characterForm.imageUrl}
+                                                onChange={handleCharacterChange}
+                                                placeholder="/assets/images/character.jpg"
+                                            />
+                                        </div>
+
+                                        <div className="modal-buttons">
+                                            <button type="button" onClick={() => setShowModal(false)}>
+                                                Cancel
+                                            </button>
+                                            <button type="submit" className="save-btn">
+                                                {editItem ? 'Update Character' : 'Create Character'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
+                            )}
+
+                            {/* Quest Create/Edit Form */}
+                            {(modalType === 'quest' || modalType === 'editQuest') && (
+                                <>
+                                    <h2>{editItem ? 'Edit Quest' : 'Create Quest'}</h2>
+                                    <form onSubmit={handleQuestSubmit}>
+                                        <div className="form-group">
+                                            <label>Title</label>
+                                            <input
+                                                type="text"
+                                                name="title"
+                                                value={questForm.title}
+                                                onChange={handleQuestChange}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label>Description</label>
+                                            <textarea
+                                                name="description"
+                                                value={questForm.description}
+                                                onChange={handleQuestChange}
+                                                rows="3"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Experience Reward</label>
+                                                <input
+                                                    type="number"
+                                                    name="experienceReward"
+                                                    value={questForm.experienceReward}
+                                                    onChange={handleQuestChange}
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label>Gold Reward</label>
+                                                <input
+                                                    type="number"
+                                                    name="goldReward"
+                                                    value={questForm.goldReward}
+                                                    onChange={handleQuestChange}
+                                                    min="0"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label>Required Level</label>
+                                                <input
+                                                    type="number"
+                                                    name="requiredLevel"
+                                                    value={questForm.requiredLevel}
+                                                    onChange={handleQuestChange}
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="modal-buttons">
+                                            <button type="button" onClick={() => setShowModal(false)}>
+                                                Cancel
+                                            </button>
+                                            <button type="submit" className="save-btn">
+                                                {editItem ? 'Update Quest' : 'Create Quest'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
     );
 }
